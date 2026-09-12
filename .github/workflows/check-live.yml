@@ -1,0 +1,46 @@
+name: Check public site
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/check-live.yml]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify the production site from an external network
+        shell: python
+        run: |
+          import json
+          from urllib.request import urlopen
+          from urllib.error import HTTPError
+
+          origin = 'https://sheet-codes.pages.dev'
+          routes = [('/', 200), ('/python', 200), ('/python.html', 200),
+                    ('/search.json', 200), ('/about/', 200), ('/LICENSE.txt', 200),
+                    ('/robots.txt', 200), ('/sitemap.xml', 200),
+                    ('/missing-sheet-123', 404)]
+          for route, expected in routes:
+              try:
+                  with urlopen(origin + route, timeout=20) as response:
+                      status, final_url, body = response.status, response.url, response.read().decode()
+              except HTTPError as error:
+                  status, final_url, body = error.code, error.url, error.read().decode()
+              assert status == expected, (route, status)
+              if expected == 404:
+                  assert 'Page not found' in body
+              if route == '/python.html':
+                  assert final_url == origin + '/python', final_url
+              if route == '/search.json':
+                  sheets = json.loads(body)
+                  assert len(sheets) > 200
+                  assert all(sheet.get('title') and sheet['path'].startswith('/') for sheet in sheets)
+                  print(f'Valid search index: {len(sheets)} sheets')
+              if route in ['/robots.txt', '/sitemap.xml']:
+                  assert origin in body and 'tjht2vnmkyrj' not in body
+              if route == '/':
+                  assert 'Sheet Codes' in body and origin in body
+              print(route, status, final_url)
