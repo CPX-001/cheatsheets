@@ -87,3 +87,8 @@ db.json
 .eslintcache
 .stylelintcache
 .prettierignore
+
+# Local deployment credentials
+.northflank/
+.northflank-config/
+*.pem

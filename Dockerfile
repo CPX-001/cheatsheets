@@ -1,24 +1,16 @@
-# Stage 1: build the application
-FROM node:19 AS build-app
+FROM node:24.18.0-alpine AS builder
 WORKDIR /app
+ENV HUSKY=0
+RUN npm install --global pnpm@10.32.1
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY . .
-RUN npm install -g pnpm
-RUN pnpm install
+ARG SITE_URL=http://localhost:8080
+ENV SITE_URL=$SITE_URL
 RUN pnpm run build
 
-# Stage 2: Build nginx
-FROM nginx:alpine AS build-nginx
-WORKDIR /usr/share/nginx/html/
-COPY --from=build-app /app/public /usr/share/nginx/html/
-RUN rm -rf /etc/nginx/conf.d/*
-COPY nginx.conf /etc/nginx/
-EXPOSE 80
-
-# Stage 3: final image
-FROM alpine:latest
-RUN apk add --no-cache nginx && mkdir -p /run/nginx
-COPY --from=build-nginx /usr/share/nginx/html/ /usr/share/nginx/html/
-COPY --from=build-nginx /etc/nginx/nginx.conf /etc/nginx/nginx.conf
-EXPOSE 80
-HEALTHCHECK --interval=1s --timeout=3s CMD wget -q -O - http://localhost:80 || exit 1
-CMD ["nginx", "-g", "daemon off;"]
+FROM nginxinc/nginx-unprivileged:1.28-alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/public /usr/share/nginx/html
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1
