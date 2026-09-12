@@ -13,6 +13,7 @@ for (const sheet of search) {
 assert(search.some((sheet) => sheet.title === 'Windows Shortcuts'));
 const homepage = fs.readFileSync(path.join(output, 'index.html'), 'utf8');
 assert(homepage.includes('Sheet Codes'));
+assert(fs.existsSync(path.join(output, '404.html')), 'Pages needs a real 404 page');
 for (const promotion of [
   'carbon_container',
   'adsbygoogle',

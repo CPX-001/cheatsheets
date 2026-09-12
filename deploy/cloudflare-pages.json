@@ -1,0 +1,40 @@
+{
+  "name": "sheet-codes",
+  "production_branch": "main",
+  "build_config": {
+    "build_command": "npx pnpm@10.32.1 lint:check && npx pnpm@10.32.1 build && npx pnpm@10.32.1 test:build",
+    "destination_dir": "public",
+    "root_dir": ""
+  },
+  "deployment_configs": {
+    "production": {
+      "env_vars": {
+        "NODE_VERSION": { "type": "plain_text", "value": "24.18.0" },
+        "PNPM_VERSION": { "type": "plain_text", "value": "10.32.1" },
+        "HUSKY": { "type": "plain_text", "value": "0" },
+        "SITE_URL": { "type": "plain_text", "value": "https://sheet-codes.pages.dev" }
+      }
+    },
+    "preview": {
+      "env_vars": {
+        "NODE_VERSION": { "type": "plain_text", "value": "24.18.0" },
+        "PNPM_VERSION": { "type": "plain_text", "value": "10.32.1" },
+        "HUSKY": { "type": "plain_text", "value": "0" },
+        "SITE_URL": { "type": "plain_text", "value": "https://sheet-codes.pages.dev" }
+      }
+    }
+  },
+  "source": {
+    "type": "github",
+    "config": {
+      "owner": "CPX-001",
+      "owner_id": "214546765",
+      "repo_name": "cheatsheets",
+      "repo_id": "1367602644",
+      "production_branch": "main",
+      "production_deployments_enabled": true,
+      "preview_deployment_setting": "none",
+      "pr_comments_enabled": false
+    }
+  }
+}

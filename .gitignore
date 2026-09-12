@@ -92,3 +92,8 @@ db.json
 .northflank/
 .northflank-config/
 *.pem
+
+# Cloudflare local state and secrets
+.wrangler/
+.dev.vars
+.dev.vars.*
