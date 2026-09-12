@@ -15,7 +15,6 @@
 @import "components/toc.css";
 @import "components/pagination.css";
 @import "components/navbar.css";
-@import "components/social-buttons.css";
 @import "components/common.css";
 
 

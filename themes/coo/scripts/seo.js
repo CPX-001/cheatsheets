@@ -1,6 +1,3 @@
-const fs = require('fs');
-const path = require('path');
-
 hexo.extend.helper.register('page_title', function () {
   let title = '';
   if (this.is_home()) {
@@ -48,23 +45,5 @@ hexo.extend.helper.register('page_keywords', function () {
 });
 
 hexo.extend.helper.register('page_image', function () {
-  const homePng = 'preview.png';
-  let postPng = 'preview.png';
-  if (this.is_post()) {
-    postPng = `${this.page.slug}-preview.png`;
-  }
-
-  const version = (Math.random() + 1).toString(36).substring(7);
-  let imageURL;
-
-  // Check file exists
-  const postPath = path.resolve('./', 'source/assets/image/', postPng);
-  if (fs.existsSync(postPath)) {
-    // Generate image url
-    imageURL = `${this.config.url}/assets/image/${postPng}?v=${version}`;
-  } else {
-    // console.warn(`Warning: ${postPath} not Found!`);
-    imageURL = `${this.config.url}/assets/image/${homePng}?v=${version}`;
-  }
-  return imageURL;
+  return `${this.config.url}/assets/logo/icon-512x512.png`;
 });

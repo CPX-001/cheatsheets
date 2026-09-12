@@ -1,3 +1,11 @@
+---
+title: Windows Shortcuts
+date: 2026-09-12 00:00:00
+categories:
+  - Keyboard Shortcuts
+intro: Keyboard shortcuts for Windows.
+---
+
 # Best Windows Shortcuts on Your Keyboard
 
 Copy selected content (Ctrl + C can also abort commands):

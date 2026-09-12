@@ -3,17 +3,18 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: CheatSheets.zip
-subtitle: "Ultimate Cheat for Developers"
+title: Sheet Codes
+subtitle: "Developer cheat sheets"
 description: "Share quick reference and cheat sheet for developers"
 keywords: cheat,sheet,cheatsheets,reference,programming,code table,snippets,linux,command,shortcuts,developers
-author: Fechin
+author: CPX-001
+repository: https://github.com/CPX-001/cheatsheets
 language: en
 timezone: "UTC"
 
 # URL
 ## If your site is put in a subdirectory, set url as 'http://yoursite.com/child' and root as '/child/'
-url: https://cheatsheets.zip
+url: http://localhost:8080
 root: /
 permalink: :name.html
 permalink_defaults:
@@ -67,22 +68,6 @@ tag_map: {}
 ## https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta
 meta_generator: false
 
-# SEO configuration
-seo:
-  # Default image for social sharing
-  default_image: "/assets/image/preview.png"
-  # Author information
-  author_name: "Fechin"
-  author_url: "https://cheatsheets.zip"
-  # Social media configuration
-  social:
-    twitter: "Fechin"
-    github: "Fechin/reference"
-  # Site type
-  site_type: "Educational Technology Platform"
-  # Target audience
-  target_audience: "Developers, Programmers, System Administrators"
-
 # Date / Time format
 ## Hexo uses Moment.js to parse and display date
 ## You can customize the date format as defined in
@@ -113,26 +98,13 @@ nofollow:
   enable: true
   field: site
   exclude:
-    - "tableconvert.com"
-    - "sbti.now"
-    - "fionaai.com"
     - "github.com"
-    - "gospinwheel.com"
-    - "colorscreen.co"
-    - "sshkeygenerator.com"
-    - "x.com"
 
 excerpt:
   depth: 2
   excerpt_excludes: []
   more_excludes: []
   hideWholePostExcerpts: true
-
-# Deployment
-## Docs: https://hexo.io/docs/deployment.html
-deploy:
-  - type: cjh_bing_url_submitter
-  - type: cjh_baidu_url_submitter
 
 # hexo-server configuration
 server:

@@ -1,15 +1,7 @@
-const path = require('path');
-const fs = require('hexo-fs');
-
-const outputFile = path.resolve('./', 'source/ga_analytics_tops.json');
-const cache = new Map();
-
-hexo.extend.helper.register('topPosts', (maximum = 4) => {
-  let posts = cache.get(outputFile);
-  if (!posts) {
-    const content = fs.readFileSync(outputFile);
-    posts = JSON.parse(content);
-    cache.set(outputFile, posts);
-  }
-  return posts.slice(0, maximum);
+// Curated recommendations, independent of upstream traffic analytics.
+hexo.extend.helper.register('topPosts', function (maximum = 4) {
+  return (this.theme.index_recommends || [])
+    .map((slug) => this.site.posts.findOne({ slug }))
+    .filter(Boolean)
+    .slice(0, maximum);
 });

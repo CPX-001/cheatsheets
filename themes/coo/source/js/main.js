@@ -334,51 +334,51 @@ function initShareDropdown() {
 }
 
 // Share Functions
-function shareOnX() {
+window.shareOnX = function shareOnX() {
   const url = encodeURIComponent(window.location.href);
   const text = encodeURIComponent(document.title);
   window.open(`https://x.com/intent/tweet?text=${text}&url=${url}`, '_blank');
-}
+};
 
-function shareOnFacebook() {
+window.shareOnFacebook = function shareOnFacebook() {
   const url = encodeURIComponent(window.location.href);
   window.open(`https://facebook.com/sharer/sharer.php?u=${url}`, '_blank');
-}
+};
 
-function shareOnReddit() {
+window.shareOnReddit = function shareOnReddit() {
   const url = encodeURIComponent(window.location.href);
   const title = encodeURIComponent(document.title);
   window.open(`https://reddit.com/submit/?url=${url}&resubmit=true&title=${title}`, '_blank');
-}
+};
 
-function shareOnPinterest() {
+window.shareOnPinterest = function shareOnPinterest() {
   const url = encodeURIComponent(window.location.href);
   const description = encodeURIComponent(document.title);
   window.open(
     `https://pinterest.com/pin/create/button/?url=${url}&description=${description}`,
     '_blank'
   );
-}
+};
 
-function shareOnLinkedIn() {
+window.shareOnLinkedIn = function shareOnLinkedIn() {
   const url = encodeURIComponent(window.location.href);
   const title = encodeURIComponent(document.title);
   window.open(`https://www.linkedin.com/shareArticle?url=${url}&title=${title}`, '_blank');
-}
+};
 
-function shareOnLine() {
+window.shareOnLine = function shareOnLine() {
   const url = encodeURIComponent(window.location.href);
   window.open(`https://social-plugins.line.me/lineit/share?url=${url}`, '_blank');
-}
+};
 
-function shareViaEmail() {
+window.shareViaEmail = function shareViaEmail() {
   const url = encodeURIComponent(window.location.href);
   const title = encodeURIComponent(document.title);
   window.location.href = `mailto:?subject=${title}&body=${url}`;
-}
+};
 
 // Copy to clipboard function
-function copyToClipboard() {
+window.copyToClipboard = function copyToClipboard() {
   const url = window.location.href;
 
   if (navigator.clipboard && window.isSecureContext) {
@@ -393,7 +393,7 @@ function copyToClipboard() {
   } else {
     fallbackCopyToClipboard(url);
   }
-}
+};
 
 function fallbackCopyToClipboard(text) {
   const textArea = document.createElement('textarea');
@@ -408,7 +408,7 @@ function fallbackCopyToClipboard(text) {
   try {
     document.execCommand('copy');
     showCopyNotification('Link copied to clipboard!');
-  } catch (err) {
+  } catch {
     showCopyNotification('Failed to copy link');
   }
 
@@ -438,70 +438,9 @@ function showCopyNotification(message) {
   }, 2000);
 }
 
-// GitHub Stars Functionality
-async function fetchGitHubStars() {
-  // Find all GitHub stars elements (support multiple variants)
-  const starsElements = document.querySelectorAll('[id^="github-stars"]');
-  if (starsElements.length === 0) return;
-
-  try {
-    // Try to get from cache first
-    const cached = localStorage.getItem('github-stars');
-    const cacheTime = localStorage.getItem('github-stars-time');
-    const now = Date.now();
-
-    // Use cache if it's less than 5 minutes old
-    if (cached && cacheTime && now - parseInt(cacheTime) < 5 * 60 * 1000) {
-      starsElements.forEach((element) => {
-        element.innerHTML = formatStarCount(parseInt(cached));
-      });
-      return;
-    }
-
-    // Fetch from GitHub API
-    const response = await fetch('https://api.github.com/repos/Fechin/reference');
-    if (!response.ok) throw new Error('Failed to fetch');
-
-    const data = await response.json();
-    const stars = data.stargazers_count;
-
-    // Cache the result
-    localStorage.setItem('github-stars', stars.toString());
-    localStorage.setItem('github-stars-time', now.toString());
-
-    // Update UI with animation
-    starsElements.forEach((element) => {
-      element.innerHTML = formatStarCount(stars);
-      element.classList.add('animate-pulse');
-      setTimeout(() => {
-        element.classList.remove('animate-pulse');
-      }, 1000);
-    });
-  } catch (error) {
-    console.warn('Failed to fetch GitHub stars:', error);
-    // Fallback to cached value or default
-    const cached = localStorage.getItem('github-stars');
-    const fallbackValue = cached ? formatStarCount(parseInt(cached)) : '6.5k';
-
-    starsElements.forEach((element) => {
-      element.innerHTML = fallbackValue;
-    });
-  }
-}
-
-function formatStarCount(count) {
-  if (count >= 1000) {
-    return (count / 1000).toFixed(1) + 'k';
-  }
-  return count.toString();
-}
-
 window.addEventListener('load', () => {
   // Initialize share dropdown
   initShareDropdown();
-
-  // Fetch GitHub stars
-  fetchGitHubStars();
 
   // Dark mode functionality
   document.querySelector('#darkMode').addEventListener('click', () => {

@@ -68,7 +68,7 @@ plugins:
   prompt.[[s]](https://help.openai.com/en/articles/6654000-best-practices-for-prompt-engineering-with-the-openai-api)
 - Provide general instructions at the start of conversations or when changing direction to avoid repeating them.
 - Don't say polite phrases to the AI (e.g., please, thank you) as it adds unecessary computational
-  costs.[[s]](https://www.techradar.com/computing/artificial-intelligence/chatgpt-spends-tens-of-millions-of-dollars-on-people-playing-please-and-thank-you-but-sam-altman-says-its-worth-it?utm_source=chatgpt.com)
+  costs.[[s]](https://www.techradar.com/computing/artificial-intelligence/chatgpt-spends-tens-of-millions-of-dollars-on-people-playing-please-and-thank-you-but-sam-altman-says-its-worth-it)
 - Don't explicitly ask the AI for help (e.g., can you help me do x?).
 - Don't explicitly reference yourself unless clarifying multiple entities (e.g., I want to, do x for me).
 

@@ -77,7 +77,7 @@ hexo.extend.generator.register('list', (locals) => {
       .findOne({ name: category })
       .posts.sort('-date')
       .map((post) => {
-        content += `- [${post.title}](https://cheatsheets.zip/${post.path}): ${post.intro.trim()}\n`;
+        content += `- [${post.title}](${hexo.config.url}/${post.path}): ${post.intro.trim()}\n`;
       });
     content += '\n</details>\n\n';
   });

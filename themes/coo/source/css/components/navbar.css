@@ -464,26 +464,3 @@ header .animate-drift {
       0.5em 0 0 currentcolor;
   }
 }
-
-/* GitHub stars counter */
-#github-stars {
-  transition: all 0.2s ease-in-out;
-  min-width: 2rem;
-  text-align: center;
-}
-
-#github-stars.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Donation button styles */
-.donation-button-hero {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.donation-button-hero:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 10px 25px -3px rgb(0 0 0 / 10%),
-    0 4px 6px -2px rgb(0 0 0 / 5%);
-}

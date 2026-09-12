@@ -6,7 +6,7 @@
     <div class="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-600 to-indigo-800 pointer-events-none"></div>
 
     <!-- Subtle Geometric Pattern Overlay -->
-    <div class="absolute inset-0 opacity-10 pointer-events-none" 
+    <div class="absolute inset-0 opacity-10 pointer-events-none"
          style="background-image: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.2) 1px, transparent 1px),
                 radial-gradient(circle at 80% 50%, rgba(255,255,255,0.2) 1px, transparent 1px);
                 background-size: 60px 60px, 90px 90px;
@@ -15,7 +15,7 @@
     <!-- Floating Orbs for Visual Interest -->
     <div class="absolute top-20 left-1/4 w-32 h-32 bg-gradient-to-r from-pink-400/20 to-purple-400/20 rounded-full blur-xl animate-pulse"></div>
     <div class="absolute bottom-20 right-1/4 w-40 h-40 bg-gradient-to-r from-blue-400/20 to-cyan-400/20 rounded-full blur-xl animate-pulse" style="animation-delay: 2s;"></div>
-    
+
     <!-- Code Elements (Simplified) -->
     <div class="absolute top-24 right-12 opacity-20 font-mono text-white/60 text-sm animate-bounce" style="animation-delay: 1s; animation-duration: 3s;">
         &lt;/&gt;
@@ -34,7 +34,7 @@
             <%- partial('index/logo', {icon: true, theme: is_home() ? 'dark' : 'light'}) %>
             <div class="md:ml-auto flex flex-wrap items-center text-base justify-center">
                 <!-- Search Button -->
-                <button id="mysearch-trigger" type="button"
+                <button id="mysearch-trigger" type="button" aria-label="Search cheat sheets"
                         class="inline-flex h-9 items-center backdrop-blur-sm rounded-3xl px-3 md:px-4 lg:px-6 py-2 transition-colors duration-200 group <%- is_home() ? "bg-white/10 outline outline-1 outline-white/20 text-white hover:bg-white/20 hover:outline-white/30" : "bg-white outline outline-1 outline-slate-200 dark:bg-slate-800 dark:outline-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700" %>">
                     <div class="md:text-xl md:mr-2 <%- is_home() ? "text-white" : "text-slate-700 dark:text-slate-300" %>">
                         <%- icon("search") %>
@@ -44,7 +44,7 @@
                 </button>
 
                 <!-- Dark Mode Toggle -->
-                <button id="darkMode" class="inline-flex items-center justify-center flex-shrink-0 h-9 w-9 rounded-3xl ml-2 lg:ml-3 backdrop-blur-sm transition-colors duration-200 group <%- is_home() ? "bg-white/10 outline outline-1 outline-white/20 text-white hover:bg-white/20 hover:outline-white/30" : "bg-white outline outline-1 outline-slate-200 dark:bg-slate-800 dark:outline-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700" %>">
+                <button id="darkMode" aria-label="Toggle dark mode" class="inline-flex items-center justify-center flex-shrink-0 h-9 w-9 rounded-3xl ml-2 lg:ml-3 backdrop-blur-sm transition-colors duration-200 group <%- is_home() ? "bg-white/10 outline outline-1 outline-white/20 text-white hover:bg-white/20 hover:outline-white/30" : "bg-white outline outline-1 outline-slate-200 dark:bg-slate-800 dark:outline-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700" %>">
                     <!-- Sun icon (shown in dark mode) -->
                     <i class="icon-light transition-all duration-200 <%- is_home() ? "text-white" : "text-slate-600 dark:text-slate-300" %>">
                         <%- icon("light") %>

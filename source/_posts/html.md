@@ -487,16 +487,16 @@ See: [The Description List element](https://developer.mozilla.org/en-US/docs/Web
 #### ↓ Preview
 
 <form method="POST" action="api/login" style="padding: 20px;">
-    <label for="email">Email: </label> 
+    <label for="email">Email: </label>
     <input type="email" id="email" name="email" class="border border-slate-400 mt-2">
     <br/>
-    <label for="pwd">Password: </label> 
+    <label for="pwd">Password: </label>
     <input type="password" id="pwd" name="pwd" class="border border-slate-400 mt-2">
     <br/>
     <input type="submit" value="Login" class="mt-2">
     <br/>
     <input type="checkbox" id="ck" name="ck" class="mt-2">
-    <label for="ck">Remember me</label> 
+    <label for="ck">Remember me</label>
 </form>
 
 The HTML `<form>` element is used to collect and send information to an external source.
@@ -848,7 +848,7 @@ The meta tag describes meta data within an HTML document. It explains additional
 <meta property="og:type" content="website" />
 <meta property="og:locale" content="en_CA" />
 <meta property="og:title" content="HTML cheatsheet" />
-<meta property="og:url" content="https://cheatsheets.zip/html" />
+<meta property="og:url" content="/html" />
 <meta property="og:image" content="https://xxx.com/image.jpg" />
 <meta property="og:site_name" content="Name of your website" />
 <meta property="og:description" content="Description of this page" />
@@ -862,7 +862,7 @@ Used by Facebook, Instagram, Pinterest, LinkedIn, etc.
 <meta name="twitter:card" content="summary" />
 <meta name="twitter:site" content="@FechinLi" />
 <meta name="twitter:title" content="HTML cheatsheet" />
-<meta name="twitter:url" content="https://cheatsheets.zip/html" />
+<meta name="twitter:url" content="/html" />
 <meta name="twitter:description" content="Description of this page" />
 <meta name="twitter:image" content="https://xxx.com/image.jpg" />
 ```
