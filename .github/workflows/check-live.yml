@@ -29,6 +29,9 @@ jobs:
                       status, final_url, body = response.status, response.url, response.read().decode()
               except HTTPError as error:
                   status, final_url, body = error.code, error.url, error.read().decode()
+                  if status != expected:
+                      print('Response headers:', dict(error.headers))
+                      print('Response body:', body[:3000])
               assert status == expected, (route, status)
               if expected == 404:
                   assert 'Page not found' in body
