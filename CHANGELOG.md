@@ -5,6 +5,7 @@
 - Moved the public site to Cloudflare Pages at https://sheet-codes.pages.dev.
 - Added Pages configuration, a manual publish command and a custom 404 page.
 - Replaced the Northflank deployment template with the Cloudflare project settings.
+- Published using Direct Upload because Cloudflare Git integration returned error 8000011.
 
 ## 1.0.0 — 2026-09-12
 
