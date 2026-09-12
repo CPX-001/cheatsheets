@@ -1,0 +1,47 @@
+{
+  "name": "Sheet Codes",
+  "description": "Personal ad-free developer cheat sheets",
+  "billing": {
+    "deploymentPlan": "nf-compute-10"
+  },
+  "deployment": {
+    "instances": 1
+  },
+  "ports": [
+    {
+      "name": "http",
+      "internalPort": 8080,
+      "public": true,
+      "protocol": "HTTP"
+    }
+  ],
+  "buildSource": "git",
+  "vcsData": {
+    "projectUrl": "https://github.com/CPX-001/cheatsheets",
+    "projectType": "github",
+    "projectBranch": "main"
+  },
+  "buildSettings": {
+    "dockerfile": {
+      "dockerFilePath": "/Dockerfile",
+      "dockerWorkDir": "/",
+      "buildEngine": "buildkit"
+    }
+  },
+  "healthChecks": [
+    {
+      "protocol": "HTTP",
+      "type": "readinessProbe",
+      "path": "/healthz",
+      "port": 8080,
+      "initialDelaySeconds": 5,
+      "periodSeconds": 10,
+      "timeoutSeconds": 3,
+      "failureThreshold": 3,
+      "successThreshold": 1
+    }
+  ],
+  "buildArguments": {
+    "SITE_URL": "https://http--sheet-codes--tjht2vnmkyrj.code.run"
+  }
+}

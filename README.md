@@ -2,6 +2,10 @@
 
 A personal, ad-free collection of developer cheat sheets maintained by CPX-001.
 
+**Live site:** https://http--sheet-codes--tjht2vnmkyrj.code.run
+
+**Dashboard:** https://app.northflank.com/t/cpxs-team/project/sheet-codes/service/sheet-codes
+
 ## Local development (WSL)
 
 ```bash

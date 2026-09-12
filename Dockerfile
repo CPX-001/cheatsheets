@@ -5,7 +5,7 @@ RUN npm install --global pnpm@10.32.1
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
-ARG SITE_URL=http://localhost:8080
+ARG SITE_URL
 ENV SITE_URL=$SITE_URL
 RUN pnpm run build
 
