@@ -552,6 +552,18 @@ path('<int:pk>/update/', PostsUpdateView.as_view(), name='post-update')
 
 ## Templates
 
+### DTL or Jinja?
+
+The examples in this section use **Django Template Language (DTL)**, Django's default engine. Jinja is a separate engine with similar delimiters but different filters, loop variables and framework helpers.
+
+Check `TEMPLATES[*]["BACKEND"]` in settings: `django.template.backends.django.DjangoTemplates` means DTL; `django.template.backends.jinja2.Jinja2` means Jinja.
+
+For DTL, learn in this order: **context and variables → escaping and filters → conditions and loops → inheritance → includes → URLs, static files and CSRF → custom tags**. Start by rendering one page, then a list with an empty state, then two pages sharing a base layout.
+
+If your project uses Jinja, follow the [Jinja learning path and cheat sheet](/jinja), including [Django setup and syntax differences](/jinja#jinja-in-django). Django recommends DTL when there is no specific reason to choose another engine; you do not need to switch to Jinja just to use templates.
+
+Source: [Django template engines](https://docs.djangoproject.com/en/5.2/topics/templates/).
+
 ### Basic Template
 
 Templates are store in `project_folder/templates` or in your <code>app_folder/templates/app_name/\*.html</code>
@@ -570,9 +582,9 @@ Templates are store in `project_folder/templates` or in your <code>app_folder/te
 {% include 'body.html' with key1=value1 key2=value2 %}
 
 <!-- If statement in template -->
-{% if user.username = 'Mike' %}
+{% if user.username == 'Mike' %}
 <p>Hello Admin</p>
-{% elif user.username = 'john' %}
+{% elif user.username == 'john' %}
 <p>Hello John Doe</p>
 {% else %}
 <p>Hello User</p>
@@ -591,7 +603,7 @@ Templates are store in `project_folder/templates` or in your <code>app_folder/te
   {{ var_name }}
 
   <!-- Template variables formating  -->
-  {{ title | lower }} {{ blog.post | truncatwords:50 }} {{ order.date | date:"D M Y" }} {{ list_items | slice:":3" }} {{
+  {{ title | lower }} {{ blog.post | truncatewords:50 }} {{ order.date | date:"D M Y" }} {{ list_items | slice:":3" }} {{
   total | default:"nil" }}
 
   <!-- Current path (ex. posts/1/show) -->

@@ -97,3 +97,6 @@ db.json
 .wrangler/
 .dev.vars
 .dev.vars.*
+
+# Local research sources
+.firecrawl/
