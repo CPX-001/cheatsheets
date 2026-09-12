@@ -18,7 +18,7 @@ jobs:
           from urllib.request import Request, urlopen
           from urllib.error import HTTPError
 
-          origin = 'https://sheet-codes.pages.dev'
+          origin = 'https://app.sheet-codes.workers.dev'
           routes = [('/', 200), ('/python', 200), ('/python.html', 200),
                     ('/search.json', 200), ('/about/', 200), ('/LICENSE.txt', 200),
                     ('/robots.txt', 200), ('/sitemap.xml', 200),

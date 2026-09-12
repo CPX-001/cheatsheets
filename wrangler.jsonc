@@ -1,5 +1,10 @@
 {
-  "name": "sheet-codes",
-  "pages_build_output_dir": "./public",
-  "compatibility_date": "2026-09-12"
+  "name": "app",
+  "compatibility_date": "2026-09-12",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
+  }
 }

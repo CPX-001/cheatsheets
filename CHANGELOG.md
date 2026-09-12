@@ -1,5 +1,11 @@
 # Changelog
 
+## Reachable Cloudflare host — 2026-09-12
+
+- Published the static site at https://app.sheet-codes.workers.dev and verified it in the browser.
+- Switched the primary deployment to Workers Static Assets after the Pages endpoint failed to connect locally.
+- Updated the public URL, deployment command and HTTP checks; retained the old Pages address as a redirect.
+
 ## Hosting migration — 2026-09-12
 
 - Moved the public site to Cloudflare Pages at https://sheet-codes.pages.dev.

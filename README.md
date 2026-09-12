@@ -2,7 +2,7 @@
 
 A personal, ad-free collection of developer cheat sheets maintained by CPX-001.
 
-**Live site:** https://sheet-codes.pages.dev
+**Live site:** https://app.sheet-codes.workers.dev
 
 ## Local development (WSL)
 
@@ -16,11 +16,11 @@ npx pnpm@10.32.1 dev
 Open http://localhost:4000. Edit `source/_posts/*.md` to maintain the sheets,
 `themes/coo/` for the interface, and `_config.yml` for site settings.
 
-## Cloudflare Pages
+## Cloudflare Workers Static Assets
 
-The public site is the `sheet-codes` project on Cloudflare Pages, deployed using
-Direct Upload. GitHub Actions checks the generated site on pushes and pull
-requests. No database, running container or runtime secrets are needed.
+The public site is the `app` Worker on the neutral `sheet-codes.workers.dev`
+subdomain. Cloudflare serves the generated files directly; no application server,
+database or runtime secrets are needed.
 
 Publish the current local checkout from WSL:
 
@@ -32,20 +32,22 @@ npm run deploy
 ```
 
 The deploy command builds the site, validates the generated sheets and publishes
-`public/` to the production branch of Pages. `wrangler.jsonc` defines the project
-and output directory; `deploy/cloudflare-pages.json` contains the project
-creation settings. Push code changes to GitHub separately with `git push`.
+`public/` using `wrangler.jsonc`. Push source changes separately with `git push`.
+GitHub Actions checks the generated site on pushes and pull requests. The
+`Check public site` workflow can also be run manually after deployment.
 
-**Automatic publication is not configured.** During migration, Cloudflare's Git
-integration returned error `8000011` after GitHub authorization. Direct Upload
-keeps the site available without that integration. A future GitHub Actions
-deployment can use a scoped Cloudflare Pages API token stored as a repository
-secret. Do not store CLI OAuth credentials in the repository.
+**Automatic publication is not configured.** Cloudflare's Git integration
+returned error `8000011` after GitHub authorization. Future CI deployment can
+use a scoped Cloudflare Workers API token stored as a repository secret.
+Do not put CLI OAuth credentials in the repository.
 
-The build emits static files into `public/`. Pages serves `/python` and redirects
-`/python.html` to `/python`. Missing routes return the custom `404.html` page.
-`SITE_URL` sets the origin for canonical URLs, structured data, the sitemap and
-robots.txt; it defaults to https://sheet-codes.pages.dev in `_config.yml`.
+The public URL is https://app.sheet-codes.workers.dev. `/python.html` redirects
+to `/python`; missing routes serve the custom 404 page. `SITE_URL` sets the
+origin for canonical URLs, structured data, the sitemap and robots.txt.
+
+The previous `sheet-codes.pages.dev` address redirects to this site where it is
+reachable. Workers is the primary host because the Pages addresses assigned
+to the local connection did not respond.
 
 ## Optional container deployment
 
@@ -55,7 +57,7 @@ docker run --rm -p 8080:8080 sheet-codes
 ```
 
 The optional Nginx container runs as an unprivileged user on port **8080** and
-provides `/healthz`. The public site is hosted on Cloudflare Pages.
+provides `/healthz`. The public site is hosted on Cloudflare Workers Static Assets.
 
 ## Changes and attribution
 
