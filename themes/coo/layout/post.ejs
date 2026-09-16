@@ -1,11 +1,19 @@
 <div class="mx-auto flex flex-wrap md:py-5 flex-col md:flex-row items-center">
     <div class="flex flex-col w-full mx-auto items-center text-center my-8">
         <div class="max-container w-full">
+            <% if (page.custom) { %>
+            <nav aria-label="Ruta de navegación" class="mb-4 text-sm text-slate-600 dark:text-slate-300">
+                <a href="<%- url_for('/') %>" class="text-indigo-600 dark:text-indigo-300 hover:underline">Sheet Codes</a>
+                <span aria-hidden="true"> / </span>
+                <a href="<%- url_for('/custom/') %>" class="text-indigo-600 dark:text-indigo-300 hover:underline">Custom</a>
+                <span aria-hidden="true"> / </span><span aria-current="page"><%= page.title %></span>
+            </nav>
+            <% } %>
             <h1 class="text-5xl mb-4">
                 <span class="text-slate-700 dark:text-slate-300 font-light"><%- page.title %></span>
-                <span class="text-slate-400 dark:text-slate-500 font-extralight hidden md:inline">cheatsheet</span>
+                <% if (!page.custom) { %><span class="text-slate-400 dark:text-slate-500 font-extralight hidden md:inline">cheatsheet</span><% } %>
             </h1>
-            <div class="lg:w-3/5 mx-auto intro leading-relaxed text-slate-600"><%- page.intro != null ? markdown(page.intro) : "" %></div>
+            <div class="lg:w-3/5 mx-auto intro leading-relaxed text-slate-600<%= page.custom ? ' dark:text-slate-300' : '' %>"><%- page.intro != null ? markdown(page.intro) : "" %></div>
         </div>
     </div>
     <div id="mdLayout" class="mdLayout w-full max-container">

@@ -1,0 +1,27 @@
+<section class="home max-container my-8">
+    <div class="w-full lg:w-4/5 mx-auto">
+        <nav aria-label="Ruta de navegación" class="mb-6 text-sm text-slate-600 dark:text-slate-300">
+            <a href="<%- url_for('/') %>" class="text-indigo-600 dark:text-indigo-300 hover:underline">Sheet Codes</a>
+            <span aria-hidden="true"> / </span><span aria-current="page">Custom</span>
+        </nav>
+        <h1 class="text-5xl font-light mb-4 text-slate-700 dark:text-slate-300"><%= page.title %></h1>
+        <div class="intro leading-relaxed max-w-2xl mb-10 text-slate-600 dark:text-slate-300"><%- markdown(page.intro) %></div>
+        <h2 class="text-xl font-medium mb-2 text-slate-800 dark:text-slate-300">Apuntes disponibles</h2>
+        <div class="h-1 bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden mb-6">
+            <div class="w-24 h-full bg-gradient-to-r from-indigo-500 to-purple-600"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-10">
+            <% const customCategory = site.categories.findOne({name: 'Custom'}); %>
+            <% if (customCategory) { customCategory.posts.sort('-date').each(function(post) { %>
+                <div>
+                    <%- partial('_partial/index/card', {
+                        url: url_for(post.path), title: post.title, label: post.label,
+                        slug: post.icon || post.slug,
+                        background: post.background || 'bg-gradient-to-r from-indigo-500 to-purple-600'
+                    }) %>
+                    <div class="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300"><%- markdown(post.intro || '') %></div>
+                </div>
+            <% }); } %>
+        </div>
+    </div>
+</section>

@@ -16,6 +16,21 @@ npx pnpm@10.32.1 dev
 Open http://localhost:4000. Edit `source/_posts/*.md` to maintain the sheets,
 `themes/coo/` for the interface, and `_config.yml` for site settings.
 
+## Custom learning notes
+
+The [Custom section](https://app.sheet-codes.workers.dev/custom/) contains original,
+guided notes alongside the unchanged reference sheets. The first guide is
+[Redis paso a paso](https://app.sheet-codes.workers.dev/custom/redis), in Spanish.
+
+Add future guides as new files such as `source/_posts/custom-topic.md`, with
+`categories: [Custom]`, `custom: true`, `language: es` and
+`permalink: custom/topic.html` in front matter. Optional `icon` reuses an existing
+icon name. Keep the existing post layout, Markdown cards, code blocks and theme;
+the teaching style and section structure can vary. Use numbered steps, expected
+results and a working exercise when the topic benefits from a guided approach.
+The home page, Custom directory and search pick up the new entry automatically.
+Leave the original topic sheet in place.
+
 ## Cloudflare Workers Static Assets
 
 The public site is the `app` Worker on the neutral `sheet-codes.workers.dev`

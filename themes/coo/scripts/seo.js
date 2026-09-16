@@ -2,6 +2,8 @@ hexo.extend.helper.register('page_title', function () {
   let title = '';
   if (this.is_home()) {
     title = `${this.config.title} - ${this.config.subtitle}`;
+  } else if (this.page.custom) {
+    title = `${this.page.title} | Custom - ${this.config.title}`;
   } else if (this.page.layout === 'note') {
     title = `${this.page.title} - ${this.config.title}`;
   } else if (this.is_page()) {

@@ -1,5 +1,11 @@
 # Changelog
 
+## Custom learning notes — 2026-09-16
+
+- Added a Custom directory and home category using the existing visual theme.
+- Added a Spanish Redis walkthrough with a local lab, expected results, a Python cache example and troubleshooting.
+- Kept the original Redis and all other existing reference sheets unchanged.
+
 ## Reachable Cloudflare host — 2026-09-12
 
 - Published the static site at https://app.sheet-codes.workers.dev and verified it in the browser.
