@@ -560,7 +560,7 @@ Check `TEMPLATES[*]["BACKEND"]` in settings: `django.template.backends.django.Dj
 
 For DTL, learn in this order: **context and variables → escaping and filters → conditions and loops → inheritance → includes → URLs, static files and CSRF → custom tags**. Start by rendering one page, then a list with an empty state, then two pages sharing a base layout.
 
-If your project uses Jinja, follow the [Jinja learning path and cheat sheet](/jinja), including [Django setup and syntax differences](/jinja#jinja-in-django). Django recommends DTL when there is no specific reason to choose another engine; you do not need to switch to Jinja just to use templates.
+For Jinja-specific configuration, see [Django's Jinja2 backend documentation](https://docs.djangoproject.com/en/5.2/topics/templates/#django.template.backends.jinja2.Jinja2). Django recommends DTL when there is no specific reason to choose another engine; you do not need to switch to Jinja just to use templates.
 
 Source: [Django template engines](https://docs.djangoproject.com/en/5.2/topics/templates/).
 

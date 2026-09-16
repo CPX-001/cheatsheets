@@ -4,7 +4,8 @@
 
 - Added a Custom directory and home category using the existing visual theme.
 - Added a Spanish Redis walkthrough with a local lab, expected results, a Python cache example and troubleshooting.
-- Kept the original Redis and all other existing reference sheets unchanged.
+- Kept the original Redis reference at `/redis` and placed the independently added Python/SQLite tutorial under Custom.
+- Preserved the concurrent removal of Jinja and its corresponding Django link update.
 
 ## Reachable Cloudflare host — 2026-09-12
 

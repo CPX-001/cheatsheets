@@ -21,6 +21,8 @@ Open http://localhost:4000. Edit `source/_posts/*.md` to maintain the sheets,
 The [Custom section](https://app.sheet-codes.workers.dev/custom/) contains original,
 guided notes alongside the unchanged reference sheets. The first guide is
 [Redis paso a paso](https://app.sheet-codes.workers.dev/custom/redis), in Spanish.
+Continue with [Redis con Python y SQLite](https://app.sheet-codes.workers.dev/custom/redis-python-sqlite)
+for a persistent source and cache failure handling.
 
 Add future guides as new files such as `source/_posts/custom-topic.md`, with
 `categories: [Custom]`, `custom: true`, `language: es` and

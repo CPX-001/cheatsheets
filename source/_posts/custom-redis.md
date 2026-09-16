@@ -499,7 +499,7 @@ Ya sabes comprobar una conexión, nombrar claves, leer y escribir valores, poner
 
 También has visto dos cosas que una tabla de comandos no explica por sí sola: **Redis no repuebla la caché por ti** y **actualizar el origen no actualiza una copia ya guardada**.
 
-Como siguiente práctica, cambia el catálogo simulado por una consulta de tu aplicación y decide qué hacer si Redis falla. Después puedes estudiar persistencia, límites de memoria y autenticación.
+Continúa con [Redis con Python y SQLite](/custom/redis-python-sqlite): cambiarás el catálogo simulado por una base de datos real y comprobarás qué ocurre si Redis falla. Después puedes estudiar persistencia, límites de memoria y autenticación.
 
 ### Vuelve a consultar
 
