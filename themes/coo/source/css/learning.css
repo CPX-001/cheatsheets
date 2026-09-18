@@ -181,10 +181,6 @@ html.has-visible-navbar {
 }
 
 .series-dialog-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
   margin-bottom: 16px;
 }
 
@@ -202,26 +198,6 @@ html.has-visible-navbar {
   text-transform: uppercase;
   color: var(--learn-accent);
   margin-bottom: 10px;
-}
-
-.series-close {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  font-size: 27px;
-  line-height: 1;
-  border: 1px solid var(--learn-line);
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.series-close:hover {
-  background: var(--learn-tint);
-  color: var(--learn-accent);
-}
-
-.series-close:active {
-  transform: scale(0.95);
 }
 
 .series-options {

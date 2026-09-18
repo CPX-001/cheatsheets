@@ -13,6 +13,8 @@ its red identity. The recovered tokens and responsive rules live in
 Catalogue panels and card hover effects animate only opacity and transforms.
 Use a dimmed backdrop without blur and pause the home decorations while a topic
 panel is open, so the background does not compete with the active interaction.
+Panels close on a backdrop click or Escape; keyboard focus cycles between the
+topic links and returns to the opening card when the panel closes.
 
 Content changes should keep the existing routes and topic boundaries. Introduce
 concepts before using them, identify the execution context and explain observable

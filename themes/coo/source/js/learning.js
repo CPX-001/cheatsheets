@@ -50,7 +50,6 @@
             ?.focus({ preventScroll: true });
         });
       });
-    dialog.querySelector('[data-series-close]').addEventListener('click', () => dialog.close());
     dialog.addEventListener('keydown', (event) => {
       if (event.key !== 'Tab') return;
       const controls = [...dialog.querySelectorAll('a[href], button:not([disabled])')];
