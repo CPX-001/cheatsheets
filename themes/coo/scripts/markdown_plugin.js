@@ -143,7 +143,8 @@ function headerSections(md, options) {
       const t = new Token(parser, opts.tagName, 1);
       t.block = true;
       const cls = token && opts[token.tag] && opts[token.tag][classOptName];
-      t.attrs = appendClass(token.attrs, cls);
+      // The wrapper owns a copy: removing the heading ID must not erase its target.
+      t.attrs = appendClass(token.attrs && token.attrs.map((attribute) => [...attribute]), cls);
       return t;
     }
 

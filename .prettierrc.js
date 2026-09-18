@@ -14,6 +14,12 @@ module.exports = {
   // File-specific configuration
   overrides: [
     {
+      files: 'source/_posts/*.md',
+      options: {
+        embeddedLanguageFormatting: 'off'
+      }
+    },
+    {
       files: '*.md',
       options: {
         proseWrap: 'preserve',

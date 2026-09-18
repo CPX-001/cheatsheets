@@ -1,9 +1,11 @@
 name: Check public site
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: [.github/workflows/check-live.yml]
+    inputs:
+      revision:
+        description: Expected deployed commit (optional)
+        type: string
+        required: false
 permissions:
   contents: read
 jobs:
@@ -13,14 +15,18 @@ jobs:
     steps:
       - name: Verify the production site from an external network
         shell: python
+        env:
+          EXPECTED_REVISION: ${{ inputs.revision }}
         run: |
           import json
+          import os
           from urllib.request import Request, urlopen
           from urllib.error import HTTPError
 
           origin = 'https://app.sheet-codes.workers.dev'
-          routes = [('/', 200), ('/python', 200), ('/python.html', 200),
+          routes = [('/', 200), ('/django', 200), ('/django.html', 200),
                     ('/search.json', 200), ('/about/', 200), ('/LICENSE.txt', 200),
+                    ('/site-version.json', 200), ('/css/learning.css', 200),
                     ('/robots.txt', 200), ('/sitemap.xml', 200),
                     ('/missing-sheet-123', 404)]
           for route, expected in routes:
@@ -35,13 +41,26 @@ jobs:
               assert status == expected, (route, status)
               if expected == 404:
                   assert 'Page not found' in body
-              if route == '/python.html':
-                  assert final_url == origin + '/python', final_url
+              if route == '/django.html':
+                  assert final_url == origin + '/django', final_url
               if route == '/search.json':
                   sheets = json.loads(body)
-                  assert len(sheets) > 200
+                  assert len(sheets) == 25
                   assert all(sheet.get('title') and sheet['path'].startswith('/') for sheet in sheets)
-                  print(f'Valid search index: {len(sheets)} sheets')
+                  assert {sheet['path'].split('-')[0].split('.')[0] for sheet in sheets} == {'/django', '/docker', '/redis'}
+                  for sheet in sheets:
+                      with urlopen(origin + sheet['path'], timeout=20) as response:
+                          html = response.read().decode()
+                          assert response.status == 200
+                      layout = 'learning-glossary' if '-glosario.' in sheet['path'] else 'learning-page-cards'
+                      assert layout in html and 'css/learning.css' in html, sheet['path']
+                      assert 'Cómo trabajar con estos apuntes' not in html, sheet['path']
+                  print(f'All {len(sheets)} topic pages have their shared reading layout')
+              if route == '/site-version.json':
+                  version = json.loads(body)
+                  assert version['guides'] == 25
+                  if os.environ.get('EXPECTED_REVISION'):
+                      assert version['revision'] == os.environ['EXPECTED_REVISION'], version
               if route in ['/robots.txt', '/sitemap.xml']:
                   assert origin in body and 'tjht2vnmkyrj' not in body
               if route == '/':

@@ -1,0 +1,31 @@
+<main class="<%= page.learning_classes %>" id="learning-main" lang="es">
+  <header class="learning-header">
+    <nav aria-label="Ruta de navegación" class="learning-breadcrumb">
+      <a href="/">Sheet Codes</a><span aria-hidden="true">/</span>
+      <span><%= page.icon === 'django' ? 'Django' : page.icon === 'docker' ? 'Docker' : 'Redis' %></span>
+      <span aria-hidden="true">/</span><span aria-current="page"><%= page.heading %></span>
+    </nav>
+    <h1><%= page.heading %></h1>
+    <p class="learning-deck"><%= page.intro %></p>
+  </header>
+  <div class="learning-layout">
+    <aside class="learning-sidebar">
+      <details class="learning-on-page" open>
+        <summary>Índice</summary>
+        <nav aria-label="Índice de esta página"><ol>
+          <% (page.sections || []).forEach(function(section) { %>
+            <li><a href="<%= section.h2.anchor %>"><%- section.h2.title %></a></li>
+            <% section.h3.forEach(function(item) { %>
+              <li class="learning-subsection"><a href="<%= item.anchor %>"><%- item.title %></a></li>
+            <% }); %>
+          <% }); %>
+        </ol></nav>
+      </details>
+    </aside>
+    <div class="learning-reading">
+      <article class="learning-content" aria-label="Apuntes de <%= page.heading %>">
+        <!--[htmlclean-protect]--><%- page.content %><!--[/htmlclean-protect]-->
+      </article>
+    </div>
+  </div>
+</main>

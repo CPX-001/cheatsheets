@@ -1,5 +1,5 @@
 <!-- Simple Timeline TOC -->
-<% if (is_post()) { %>
+<% if (is_post() && page.layout !== 'learning') { %>
 <div id="toc-container" class="toc-container">
   <nav id="toc-list" class="toc-list" role="navigation" aria-label="Table of Contents">
     <!-- TOC items will be inserted here by JavaScript -->
