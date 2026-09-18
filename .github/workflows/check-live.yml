@@ -24,6 +24,7 @@ jobs:
           from urllib.error import HTTPError
 
           origin = 'https://app.sheet-codes.workers.dev'
+          headers = {'User-Agent': 'SheetCodesDeploymentCheck/1.0 (+https://github.com/CPX-001/cheatsheets)'}
           routes = [('/', 200), ('/django', 200), ('/django.html', 200),
                     ('/search.json', 200), ('/about/', 200), ('/LICENSE.txt', 200),
                     ('/site-version.json', 200), ('/css/learning.css', 200),
@@ -31,7 +32,7 @@ jobs:
                     ('/missing-sheet-123', 404)]
           for route, expected in routes:
               try:
-                  with urlopen(Request(origin + route, headers={'User-Agent': 'SheetCodesDeploymentCheck/1.0 (+https://github.com/CPX-001/cheatsheets)'}), timeout=20) as response:
+                  with urlopen(Request(origin + route, headers=headers), timeout=20) as response:
                       status, final_url, body = response.status, response.url, response.read().decode()
               except HTTPError as error:
                   status, final_url, body = error.code, error.url, error.read().decode()
@@ -49,7 +50,7 @@ jobs:
                   assert all(sheet.get('title') and sheet['path'].startswith('/') for sheet in sheets)
                   assert {sheet['path'].split('-')[0].split('.')[0] for sheet in sheets} == {'/django', '/docker', '/redis'}
                   for sheet in sheets:
-                      with urlopen(origin + sheet['path'], timeout=20) as response:
+                      with urlopen(Request(origin + sheet['path'], headers=headers), timeout=20) as response:
                           html = response.read().decode()
                           assert response.status == 200
                       layout = 'learning-glossary' if '-glosario.' in sheet['path'] else 'learning-page-cards'

@@ -10,6 +10,10 @@ guides use the same sequential section cards; glossary pages use reference cards
 its red identity. The recovered tokens and responsive rules live in
 `themes/coo/source/css/learning.css`.
 
+Catalogue panels and card hover effects animate only opacity and transforms.
+Use a dimmed backdrop without blur and pause the home decorations while a topic
+panel is open, so the background does not compete with the active interaction.
+
 Content changes should keep the existing routes and topic boundaries. Introduce
 concepts before using them, identify the execution context and explain observable
 results. Examples illustrate the topic; learning does not depend on a downloaded

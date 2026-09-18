@@ -142,6 +142,11 @@ html.has-visible-navbar {
   overflow: hidden;
 }
 
+/* Keep the page behind a modal still while its panel is in use. */
+.series-is-open header.home :is(.animate-pulse, .animate-bounce) {
+  animation-play-state: paused;
+}
+
 .series-dialog {
   position: fixed;
   inset: auto;
@@ -167,8 +172,7 @@ html.has-visible-navbar {
 }
 
 .series-dialog::backdrop {
-  background: rgb(15 23 42 / 32%);
-  backdrop-filter: blur(6px);
+  background: rgb(15 23 42 / 48%);
   animation: series-backdrop 180ms ease-out both;
 }
 
@@ -968,10 +972,7 @@ section.home.catalogue {
   overflow: hidden;
   background-size: 140% 140%;
   background-position: 0% 50%;
-  transition:
-    transform 180ms ease,
-    box-shadow 180ms ease,
-    background-position 240ms ease;
+  transition: transform 180ms ease;
 }
 
 :is(.home, .series-options) .card::after {
@@ -994,7 +995,6 @@ section.home.catalogue {
 @media (hover: hover) {
   :is(.home, .series-options) a:hover .card {
     transform: translateY(-2px);
-    background-position: 100% 50%;
     box-shadow:
       0 6px 14px -6px rgb(15 23 42 / 30%),
       inset 0 0 0 1px rgb(255 255 255 / 16%);
