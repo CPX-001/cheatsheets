@@ -91,7 +91,19 @@ html.has-visible-navbar {
   --learn-scrollbar: #64748b;
 }
 
-/* Guide accents match their catalogue cards: Django green, Docker blue, Redis red. */
+/* Guide accents match their catalogue cards. */
+
+.learning-llm {
+  --learn-accent: #6d28d9;
+  --learn-tint: #ede9fe;
+  --learn-focus: #7c3aed;
+}
+
+.dark .learning-llm {
+  --learn-accent: #c4b5fd;
+  --learn-tint: #2e2049;
+  --learn-focus: #a78bfa;
+}
 
 .learning-django {
   --learn-accent: #047857;

@@ -52,10 +52,12 @@ jobs:
                       '/docker-dockerfile.html': 'Docker · Dockerfile',
                       '/docker-compose.html': 'Docker Compose',
                       '/redis.html': 'Redis · Base',
+                      '/llm-week-1.html': 'LLM Engineering · Week 1',
+                      '/llm-week-2.html': 'LLM Engineering · Week 2',
                   }
                   assert {sheet['path']: sheet['title'] for sheet in sheets} == expected_titles
                   assert all(sheet.get('title') and sheet['path'].startswith('/') for sheet in sheets)
-                  assert {sheet['path'].split('-')[0].split('.')[0] for sheet in sheets} == {'/django', '/docker', '/redis'}
+                  assert {sheet['path'].split('-')[0].split('.')[0] for sheet in sheets} == {'/django', '/docker', '/redis', '/llm'}
                   for sheet in sheets:
                       with urlopen(Request(origin + sheet['path'], headers=headers), timeout=20) as response:
                           html = response.read().decode()
@@ -66,7 +68,7 @@ jobs:
                   print(f'All {len(sheets)} topic pages have their shared reading layout')
               if route == '/site-version.json':
                   version = json.loads(body)
-                  assert version['guides'] == 5
+                  assert version['guides'] == 7
                   if os.environ.get('EXPECTED_REVISION'):
                       assert version['revision'] == os.environ['EXPECTED_REVISION'], version
               if route in ['/robots.txt', '/sitemap.xml']:

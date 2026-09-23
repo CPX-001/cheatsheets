@@ -10,7 +10,9 @@ const titles = {
   docker: 'Docker · Base',
   'docker-dockerfile': 'Docker · Dockerfile',
   'docker-compose': 'Docker Compose',
-  redis: 'Redis · Base'
+  redis: 'Redis · Base',
+  'llm-week-1': 'LLM Engineering · Week 1',
+  'llm-week-2': 'LLM Engineering · Week 2'
 };
 const expected = Object.keys(titles);
 assert.deepEqual(
@@ -66,8 +68,8 @@ assert(
 );
 assert.equal(
   (homepage.match(/data-series-trigger/g) || []).length,
-  3,
-  'The catalogue must have three guide entries'
+  4,
+  'The catalogue must have four guide entries'
 );
 const catalogue = {
   django: [['django', 'Base']],
@@ -76,7 +78,11 @@ const catalogue = {
     ['docker-dockerfile', 'Dockerfile'],
     ['docker-compose', 'Docker Compose']
   ],
-  redis: [['redis', 'Base']]
+  redis: [['redis', 'Base']],
+  llm: [
+    ['llm-week-1', 'Week 1'],
+    ['llm-week-2', 'Week 2']
+  ]
 };
 for (const [family, options] of Object.entries(catalogue)) {
   const dialog = [...homepage.matchAll(/<dialog\b[^>]*>[\s\S]*?<\/dialog>/g)].find((match) =>
@@ -94,7 +100,7 @@ const obsoletePages = fs
   .readdirSync(output)
   .filter(
     (file) =>
-      /^(django|docker|redis)-.*\.html$/.test(file) &&
+      /^(django|docker|redis|llm)-.*\.html$/.test(file) &&
       !expected.includes(path.basename(file, '.html'))
   );
 assert.deepEqual(obsoletePages, [], 'Removed subtopics must not remain in the build');
