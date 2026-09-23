@@ -35,9 +35,6 @@ hexo.extend.filter.register('after_post_render', (data) => {
 
   const cards = [];
   for (let i = 0; i < h2_list.length; i++) {
-    if (h3_list[i].length === 0) {
-      continue;
-    }
     delete h2_list[i].start;
     cards.push({
       h2: h2_list[i],

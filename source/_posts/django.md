@@ -1,122 +1,100 @@
 ---
-title: 'Django · De HTTP al primer proyecto'
+title: 'Django · Base'
 date: '2026-09-18'
-updated: '2026-09-19'
+updated: '2026-09-21'
 layout: 'learning'
 language: 'es'
 disableNunjucks: true
 icon: 'django'
 categories: ['Python']
-intro: 'Qué hace Django entre una petición y una respuesta, para qué sirve cada archivo y cómo empezar a usarlo con criterio.'
-heading: 'De HTTP al primer proyecto'
-eyebrow: 'Ruta 01 de 8 · Empieza aquí'
+intro: 'De una petición web a una aplicación de artículos: proyecto, rutas, modelos, páginas y formularios con Django.'
+heading: 'Base'
+eyebrow: 'Fundamentos'
 learning_classes: 'learning-page learning-django learning-page-cards'
 background: 'bg-gradient-to-r from-emerald-700 to-green-900 !text-white'
 ---
 
-## 1. Qué problema resuelve Django
+## 1. Qué hace Django
 
-### De una función Python a una aplicación web
+Django es un framework de Python para construir aplicaciones web. Se ejecuta en el servidor: recibe peticiones, consulta o modifica datos y devuelve respuestas. Una web de artículos permite conectar sus piezas principales: una dirección muestra el listado, otra muestra un artículo y un formulario permite publicar contenido.
 
-Una función Python puede calcular un resultado, pero un navegador necesita un servidor que acepte conexiones y responda mediante HTTP. **HTTP** es el protocolo que describe la petición —método, dirección, cabeceras y, a veces, cuerpo— y la respuesta —estado, cabeceras y contenido—. Django organiza el código que decide cómo responder y aporta herramientas para consultar datos, generar HTML, validar formularios y reconocer usuarios.
-
-Piensa en una web de artículos. Al abrir `/articulos/`, el navegador solicita una página; Django consulta qué artículos deben aparecer, prepara el HTML y lo devuelve. Al guardar una edición, recibe los campos enviados, comprueba que son válidos, modifica la base de datos y responde con una redirección. Son recorridos relacionados, pero cumplen trabajos distintos.
-
-Django se ejecuta en el servidor. El navegador recibe el resultado, no ejecuta `views.py` ni las instrucciones de un template. Si ves una página cambiar sin recargarse, hay además código del navegador —normalmente JavaScript— que solicita datos y modifica la interfaz. Django puede responder a esas peticiones con JSON en lugar de HTML.
-
-### El recorrido que conecta las piezas
+Cuando el navegador abre una dirección, envía una **petición HTTP**. Incluye un método, como `GET`, y una ruta, como `/articulos/`. Django busca una ruta registrada y llama a su **view**, la función Python encargada de responder. Si necesita datos, la view consulta un **modelo**; si necesita una página, utiliza un **template**, una plantilla HTML con espacios para esos datos.
 
 ```text
-navegador → servidor HTTP → middleware → resolución de URL → view
-                                                          ↓
-                                                  ORM / servicios
-                                                          ↓
-navegador ← respuesta HTTP ← middleware ← HTML o JSON ← resultado
+GET /articulos/
+        ↓
+urls.py → view → modelo → base de datos
+            ↓
+         template + datos → respuesta HTML → navegador
 ```
 
-El **middleware** es una capa que puede intervenir antes y después de la view: por ejemplo, asociar la sesión a la petición. La resolución de URL encuentra qué función debe atender la dirección. Una **view** es esa función, o una clase que ofrece el mismo punto de entrada. El **ORM** traduce operaciones sobre modelos Python a consultas de base de datos. El **template** convierte datos y una plantilla en texto HTML. No todas las peticiones necesitan todas esas piezas: una comprobación de salud puede devolver un texto sin consultar nada.
+`GET` se utiliza para consultar; `POST`, para enviar datos que pueden producir cambios. Una respuesta incluye un estado: `200` indica éxito, `302` una redirección y `404` un recurso inexistente. El navegador recibe HTML; no ejecuta el Python ni las instrucciones de los templates.
 
-## 2. Leer una petición antes de escribir código
+El **proyecto** contiene la configuración general de la web. Una **aplicación** agrupa una responsabilidad dentro del proyecto. Aquí, `config` será el proyecto y `articulos` la aplicación. La base de datos será SQLite, que guarda los datos en un archivo y no requiere instalar otro servidor.
 
-### Método, ruta y parámetros
+## 2. Preparar el proyecto
 
-En `GET /articulos/?pagina=2`, `GET` pide una representación del recurso; `/articulos/` es la ruta que se compara con `urls.py`; `pagina=2` es un parámetro de consulta. Ese parámetro no forma parte del patrón de URL. Django lo ofrece en `request.GET`, como texto. Convertirlo a entero y aceptar solo valores razonables es responsabilidad de tu código o de una herramienta como `Paginator`.
-
-`POST` suele enviar datos en el cuerpo para solicitar un cambio. Un formulario HTML convencional produce campos que Django expone en `request.POST`. Un cuerpo JSON es otro formato: no aparece automáticamente en ese diccionario. La respuesta puede ser `200` si todo fue bien, `404` si no existe el recurso o `302` si hay que visitar otra dirección. Un estado describe el resultado HTTP; no sustituye la explicación o los datos de la respuesta.
-
-Una **cabecera** añade información, como `Content-Type: text/html`. Una **cookie** es un valor que el navegador conserva y vuelve a enviar al servidor dentro de sus restricciones de dominio y ruta. Más adelante una cookie permitirá identificar una sesión; eso no significa que el navegador posea las contraseñas o el estado completo del servidor.
-
-## 3. Proyecto, aplicación y entorno
-
-### Tres nombres para tres responsabilidades
-
-El **entorno virtual** contiene las dependencias Python de este trabajo. El **proyecto Django** reúne la configuración de una web: base de datos, aplicaciones, rutas y opciones de ejecución. Una **aplicación Django** agrupa una responsabilidad, por ejemplo `articulos`. Un proyecto puede reunir varias aplicaciones; crear una aplicación por cada pantalla suele fragmentar una misma responsabilidad.
-
-Los ejemplos de estas páginas usan Python 3.12 o posterior y Django 5.2. Esa elección permite reproducir el código; no necesitas cambiar un proyecto existente de versión para comprender el recorrido. En una terminal de Linux o macOS, desde la carpeta que contendrá tu proyecto:
+Los ejemplos utilizan Python 3.12 y Django 5.2. Desde una terminal de Linux o macOS, en la carpeta donde se guardará el proyecto:
 
 ```bash
 mkdir web-articulos
 cd web-articulos
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install 'Django>=5.2,<5.3'
-python -m django startproject config .
-python manage.py startapp articulos
+python3 -m pip install 'Django>=5.2,<5.3'
+python3 -m django startproject config .
+python3 manage.py startapp articulos
 ```
 
-En PowerShell, la activación es `.venv\Scripts\Activate.ps1`. Después de activar el entorno, `python` y `python -m pip` apuntan a ese entorno. El punto final de `startproject config .` coloca `manage.py` en la carpeta actual y crea el paquete `config`; no crea otra carpeta exterior con el mismo nombre.
+El entorno `.venv` mantiene las dependencias separadas de otros proyectos. Tras activarlo, `python3` utiliza ese entorno; `-m` ejecuta un módulo instalado en él. El rango de instalación acepta las correcciones de Django 5.2 sin cambiar de serie. En Windows con PowerShell se utiliza `py` para crear el entorno, `.venv\Scripts\Activate.ps1` para activarlo y `python` en los comandos posteriores.
 
-```text
-web-articulos/
-├── manage.py
-├── config/
-│   ├── settings.py
-│   ├── urls.py
-│   ├── asgi.py
-│   └── wsgi.py
-└── articulos/
-    ├── models.py
-    ├── views.py
-    ├── admin.py
-    └── migrations/
-```
+`startproject config .` crea la configuración en la carpeta actual: el punto evita añadir otra carpeta exterior. `startapp articulos` crea los archivos de la aplicación. Los principales son:
 
-`manage.py` carga la configuración y ejecuta comandos de Django. `settings.py` contiene opciones, no la lógica de tus pantallas. `urls.py` distribuye peticiones. `wsgi.py` y `asgi.py` ofrecen una entrada a servidores compatibles: son contratos de ejecución, no páginas web. La carpeta `migrations` conservará cambios versionados del esquema de datos.
+| Archivo                 | Responsabilidad                                          |
+| ----------------------- | -------------------------------------------------------- |
+| `manage.py`             | Ejecutar comandos con la configuración del proyecto.     |
+| `config/settings.py`    | Aplicaciones instaladas, base de datos y otras opciones. |
+| `config/urls.py`        | Distribuir las rutas generales.                          |
+| `articulos/models.py`   | Definir los datos de la aplicación.                      |
+| `articulos/views.py`    | Procesar peticiones y devolver respuestas.               |
+| `articulos/admin.py`    | Registrar modelos en la administración.                  |
+| `articulos/migrations/` | Conservar los cambios de estructura de la base de datos. |
 
-### Registrar una aplicación no crea sus URLs
+En `config/settings.py`, añade `"articulos"` como otro elemento de `INSTALLED_APPS`, conservando las entradas existentes. Esto permite descubrir sus modelos y plantillas; las rutas se conectan por separado. En el mismo archivo, cambia la asignación de idioma a `LANGUAGE_CODE = "es"` para que la administración y los errores de formulario aparezcan en español.
 
-Añade `"articulos"` a la lista `INSTALLED_APPS` de `config/settings.py`, conservando las aplicaciones que ya trae Django. Así Django descubre sus modelos, templates y otros recursos. La exposición de una URL es una decisión diferente, que haremos a continuación. El proyecto recién creado usa SQLite; el archivo de base de datos aparecerá cuando apliques las migraciones.
+Todos los siguientes comandos de gestión se ejecutan desde `web-articulos`, donde está `manage.py`, y con el entorno activo.
 
-## 4. Una respuesta cuyo recorrido puedas seguir
+## 3. Conectar una dirección con una respuesta
 
-### La view recibe una petición y devuelve una respuesta
-
-Crea esta función en `articulos/views.py`. `request` es un objeto que Django entrega a la función en cada petición; no lo creas tú ni es una variable global.
+Sustituye el contenido de `articulos/views.py`:
 
 ```python
-# articulos/views.py
 from django.http import HttpResponse
 
 
-def inicio(request):
+def listado(request):
     return HttpResponse("La sección de artículos responde.")
 ```
 
-Crea `articulos/urls.py`, que no aparece al ejecutar `startapp`:
+Django proporciona `request` al llamar a la función. Es un objeto con información de la petición, como `request.method`. `HttpResponse` construye la respuesta con el texto indicado; por defecto, su estado es `200`.
+
+Crea `articulos/urls.py`, un archivo que `startapp` no genera:
 
 ```python
-# articulos/urls.py
 from django.urls import path
 from . import views
 
 app_name = "articulos"
-urlpatterns = [path("", views.inicio, name="inicio")]
+urlpatterns = [
+    path("", views.listado, name="listado"),
+]
 ```
 
-En `config/urls.py`, conserva el admin y conecta las rutas de la aplicación:
+`path` relaciona un patrón con una función. `views.listado` se pasa sin paréntesis: Django la ejecutará cuando llegue una petición. `name="listado"` identifica la ruta y `app_name` agrupa los nombres bajo `articulos`. Más adelante se utilizará `articulos:listado` para construir enlaces.
+
+Sustituye `config/urls.py` por:
 
 ```python
-# config/urls.py
 from django.contrib import admin
 from django.urls import include, path
 
@@ -126,27 +104,266 @@ urlpatterns = [
 ]
 ```
 
-`include` delega el resto de la ruta. Para `/articulos/`, el proyecto consume `articulos/` y la aplicación recibe la cadena vacía, que coincide con `path("")`. `name="inicio"` da un identificador a la ruta; `app_name` lo agrupa bajo `articulos:inicio`, útil para generar enlaces sin escribir direcciones a mano.
+`include` delega en las rutas de la aplicación. Para `/articulos/`, el proyecto consume `articulos/`; queda la cadena vacía, que coincide con `path("")`. La ruta `admin/` conecta la administración incorporada de Django.
 
-### Poner en marcha lo que acabas de conectar
-
-En la terminal, en la carpeta que contiene `manage.py` y con el entorno activo:
+En la terminal:
 
 ```bash
-python manage.py migrate
-python manage.py runserver
+python3 manage.py migrate
+python3 manage.py runserver
 ```
 
-`migrate` crea las tablas de las aplicaciones instaladas, incluidas las de usuarios y sesiones que trae Django. `runserver` mantiene un servidor de desarrollo en primer plano. Abre `http://127.0.0.1:8000/articulos/`: deberías ver la frase de la view. Una visita a `/` dará `404` porque todavía no hemos definido esa ruta; no demuestra que el servidor esté roto.
+`migrate` prepara las tablas de las aplicaciones instaladas, incluidas las de usuarios y sesiones. `runserver` inicia el servidor de desarrollo. Al abrir `http://127.0.0.1:8000/articulos/` debe aparecer la frase. La dirección `/` devuelve `404` porque no tiene una ruta definida.
 
-Para cerrar el servidor usa `Ctrl+C`. Para ejecutar otro comando mientras funciona, abre otra terminal, entra en la misma carpeta y activa el entorno. `runserver` recarga código durante el desarrollo; el despliegue usa procesos y configuración diferentes, explicados en [producción](/django-produccion.html).
+El servidor ocupa la terminal. `Ctrl+C` lo detiene; para ejecutar más comandos también puede abrirse otra terminal en la misma carpeta y activar allí el entorno. Durante los siguientes cambios conviene completar todos los archivos de cada sección antes de recargar la página.
 
-## 5. Identificar una respuesta de error
+## 4. Guardar artículos: modelo, migración y administración
 
-### Conexión, ruta y código
+Un modelo describe datos persistentes. En este caso, cada artículo tendrá título, contenido y fecha de creación. Sustituye `articulos/models.py`:
 
-Cuando falle algo, sitúa primero el fallo en el recorrido: conexión rechazada significa que no llegaste al servidor; `404` puede ser una ruta o un objeto inexistente; `500` significa que el servidor encontró un error al procesar la petición. El traceback de la terminal muestra la excepción y la línea implicada. Leerlo desde la excepción hacia la primera línea de tu código suele ser más útil que cambiar archivos al azar.
+```python
+from django.db import models
 
-Un `TemplateDoesNotExist` apunta al nombre del template, su ubicación o la aplicación que lo contiene. Un `NoReverseMatch` indica que Django no pudo construir una URL con el nombre y los argumentos disponibles. Ambos ocurren después de que la petición haya llegado a Django: reiniciar Redis o cambiar el puerto no corrige esas causas. [URLs y templates](/django-http-templates.html) explica las relaciones entre esos archivos.
 
-Como lectura didáctica complementaria, [Django Girls: tu primer proyecto](https://tutorial.djangogirls.org/es/django_start_project/) desarrolla la creación del proyecto y [sus URLs](https://tutorial.djangogirls.org/es/django_urls/) conectan dirección y view.
+class Articulo(models.Model):
+    titulo = models.CharField(max_length=120)
+    contenido = models.TextField()
+    creado = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.titulo
+```
+
+Heredar de `models.Model` permite a Django convertir la clase en un modelo. Cada campo describe una columna: `CharField` almacena texto limitado a 120 caracteres; `TextField`, texto largo; `DateTimeField`, fecha y hora. `auto_now_add=True` asigna la fecha al crear el registro. No hace falta introducirla en el formulario.
+
+Django añade un identificador numérico `id` a cada fila. `pk`, abreviatura de _primary key_, permite acceder a ese identificador. Una instancia de `Articulo` representa un artículo concreto. `__str__` devuelve su título cuando se necesita representarla como texto, por ejemplo en la administración.
+
+Guardar este archivo todavía no crea la tabla. Ejecuta:
+
+```bash
+python3 manage.py makemigrations articulos
+python3 manage.py migrate
+```
+
+`makemigrations` compara los modelos con las migraciones existentes y genera `articulos/migrations/0001_initial.py`. `migrate` aplica los cambios pendientes a la base de datos, cuyo archivo predeterminado es `db.sqlite3`. Al modificar después la estructura de un modelo se repite esta secuencia; añadir artículos no requiere migraciones.
+
+Django incluye una interfaz para gestionar registros. Sustituye `articulos/admin.py`:
+
+```python
+from django.contrib import admin
+from .models import Articulo
+
+admin.site.register(Articulo)
+```
+
+El punto de `.models` indica el módulo de esta misma aplicación. `register` incorpora el modelo a la administración. Crea una cuenta administrativa desde la terminal:
+
+```bash
+python3 manage.py createsuperuser
+```
+
+El comando solicita usuario, correo y contraseña; la contraseña no se muestra al escribirla. Con el servidor en marcha, abre `http://127.0.0.1:8000/admin/`, inicia sesión y añade un artículo con título «Primera publicación» y un breve contenido. Queda guardado en SQLite, incluso después de detener el servidor. El panel permite editarlo y eliminarlo sin escribir esas pantallas.
+
+## 5. Consultar el listado y el detalle
+
+El **ORM** es la capa que traduce consultas expresadas con objetos Python a operaciones de base de datos. No requiere escribir SQL para estas operaciones básicas.
+
+Sustituye completamente `articulos/views.py`; la respuesta de texto inicial se convierte en dos páginas:
+
+```python
+from django.shortcuts import get_object_or_404, render
+from .models import Articulo
+
+
+def listado(request):
+    articulos = Articulo.objects.order_by("-creado")
+    return render(request, "articulos/listado.html", {"articulos": articulos})
+
+
+def detalle(request, pk):
+    articulo = get_object_or_404(Articulo, pk=pk)
+    return render(request, "articulos/detalle.html", {"articulo": articulo})
+```
+
+`Articulo.objects` es el gestor de consultas del modelo. `order_by("-creado")` devuelve un **QuerySet**, una colección consultable de artículos ordenada por fecha descendente. El signo `-` coloca primero los más recientes. La consulta se ejecutará al necesitar los resultados, en este caso cuando el template recorra la colección.
+
+`get_object_or_404(Articulo, pk=pk)` busca un artículo cuyo identificador coincida con el recibido. El primer `pk` es el nombre del filtro; el segundo, la variable de la función. Si el registro no existe, Django responde `404`.
+
+`render` recibe la petición, el nombre del template y un diccionario llamado **contexto**. En `{"articulos": articulos}`, la clave será el nombre disponible en el template; el valor procede de la consulta. El resultado de `render` es una respuesta con el HTML generado.
+
+Sustituye `articulos/urls.py` por:
+
+```python
+from django.urls import path
+from . import views
+
+app_name = "articulos"
+urlpatterns = [
+    path("", views.listado, name="listado"),
+    path("<int:pk>/", views.detalle, name="detalle"),
+]
+```
+
+`<int:pk>` captura un número de la dirección, lo convierte a entero y lo entrega a `detalle` como argumento `pk`. Por ejemplo, `/articulos/1/` busca el artículo de identificador `1`. Las views ya están conectadas; faltan los archivos HTML que utilizarán.
+
+## 6. Mostrar datos con templates
+
+Crea la carpeta `articulos/templates/articulos/`. La primera parte permite a Django descubrir las plantillas de una aplicación instalada; la segunda evita confundir sus nombres con los de otras aplicaciones. La configuración generada ya activa esta búsqueda mediante `APP_DIRS = True`.
+
+Crea `articulos/templates/articulos/base.html`:
+
+```html
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <title>Artículos</title>
+  </head>
+  <body>
+    <nav><a href="{% url 'articulos:listado' %}">Listado</a></nav>
+    <main>{% block contenido %}{% endblock %}</main>
+  </body>
+</html>
+```
+
+El HTML establece el documento: `head` contiene metadatos y `body`, el contenido visible. Las instrucciones `{% ... %}` las interpreta Django antes de enviarlo. `url` construye una dirección a partir del nombre de ruta. `block contenido` reserva una zona que las páginas hijas podrán completar.
+
+Crea `articulos/templates/articulos/listado.html`:
+
+```html
+{% extends "articulos/base.html" %}
+{% block contenido %}
+<h1>Artículos</h1>
+<ul>
+  {% for articulo in articulos %}
+    <li>
+      <a href="{% url 'articulos:detalle' articulo.pk %}">
+        {{ articulo.titulo }}
+      </a>
+    </li>
+  {% empty %}
+    <li>No hay artículos publicados.</li>
+  {% endfor %}
+</ul>
+{% endblock %}
+```
+
+`extends` reutiliza el documento base; `block` define su contenido particular. `for` recorre `articulos`, la variable que recibió del contexto. En cada vuelta, `articulo` representa un objeto. `{{ articulo.titulo }}` inserta su título y `url` utiliza `articulo.pk` para completar la ruta del detalle. `empty` define qué mostrar cuando la colección está vacía.
+
+Crea `articulos/templates/articulos/detalle.html`:
+
+```html
+{% extends "articulos/base.html" %}
+{% block contenido %}
+<article>
+  <h1>{{ articulo.titulo }}</h1>
+  {{ articulo.contenido|linebreaks }}
+</article>
+{% endblock %}
+```
+
+Aquí `articulo` procede del contexto de `detalle`. `linebreaks` es un **filtro**: transforma los saltos de línea del texto en párrafos y saltos HTML. Django escapa por defecto los caracteres especiales de los valores para que un texto como `<script>` no se interprete como código ejecutable.
+
+Al abrir `/articulos/`, aparece el artículo creado desde la administración. Su enlace conduce al detalle. Una dirección numérica sin artículo asociado devuelve `404`.
+
+## 7. Crear artículos mediante un formulario
+
+Un formulario de Django define campos, interpreta datos y valida su contenido. `ModelForm` obtiene los campos a partir de un modelo, evitando repetir las reglas de título y contenido. Crea `articulos/forms.py`:
+
+```python
+from django import forms
+from .models import Articulo
+
+
+class ArticuloForm(forms.ModelForm):
+    class Meta:
+        model = Articulo
+        fields = ["titulo", "contenido"]
+```
+
+`Meta` declara la configuración: `model` indica qué modelo representa y `fields` qué campos permite editar. Ambos campos son obligatorios porque el modelo no permite que queden vacíos en los formularios. La longitud máxima del título también se comprueba. El identificador y la fecha quedan fuera de la entrada del usuario.
+
+En `articulos/views.py`, añade estos imports al principio, conservando los existentes:
+
+```python
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import redirect
+from .forms import ArticuloForm
+```
+
+Añade esta función después de `detalle`:
+
+```python
+@staff_member_required
+def crear(request):
+    if request.method == "POST":
+        form = ArticuloForm(request.POST)
+        if form.is_valid():
+            articulo = form.save()
+            return redirect("articulos:detalle", pk=articulo.pk)
+    else:
+        form = ArticuloForm()
+
+    return render(request, "articulos/formulario.html", {"form": form})
+```
+
+El decorador `@staff_member_required` protege la función: solo admite cuentas activas marcadas como personal administrativo. La cuenta creada con `createsuperuser` cumple ambas condiciones. Si falta esa sesión, Django dirige al inicio de sesión del admin y después vuelve al formulario. Esta regla concede la creación a todo el personal administrativo; no comprueba permisos específicos del modelo.
+
+La función distingue dos recorridos:
+
+- Con `GET`, `ArticuloForm()` crea un formulario vacío para mostrarlo.
+- Con `POST`, `request.POST` contiene los campos enviados. `ArticuloForm(request.POST)` los vincula al formulario y `is_valid()` ejecuta la validación en el servidor. Si falla, la ejecución llega a `render` con los datos y errores conservados.
+
+Cuando es válido, `save()` guarda un artículo nuevo y devuelve la instancia creada. `redirect` construye la URL del detalle con su `pk` y devuelve una respuesta `302`. El navegador hace entonces un `GET` a esa dirección: actualizar el detalle no vuelve a enviar el formulario.
+
+Añade a `urlpatterns` en `articulos/urls.py`, antes de la ruta del detalle:
+
+```python
+path("nuevo/", views.crear, name="crear"),
+```
+
+Crea `articulos/templates/articulos/formulario.html`:
+
+```html
+{% extends "articulos/base.html" %}
+{% block contenido %}
+<h1>Nuevo artículo</h1>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Guardar</button>
+</form>
+{% endblock %}
+```
+
+Sin `action`, el formulario envía los datos a la misma dirección. `method="post"` indica el método HTTP. `form.as_p` genera etiquetas, controles y errores agrupados en párrafos; en el lenguaje de templates se accede al método sin escribir paréntesis.
+
+`csrf_token` genera un campo oculto que Django comprueba al recibir el envío. Esta protección dificulta que otro sitio provoque un cambio usando la sesión abierta del navegador. No sustituye la validación ni la comprobación de acceso. El proyecto generado ya incorpora el middleware —una capa que procesa peticiones— necesario para comprobarlo.
+
+Por último, añade dentro del `nav` de `base.html`, después del enlace al listado:
+
+```html
+<a href="{% url 'articulos:crear' %}">Nuevo artículo</a>
+```
+
+Al abrir ese enlace con la sesión administrativa iniciada, aparece el formulario. Un envío válido guarda el artículo y abre su detalle. Un título demasiado largo o un campo vacío no se guarda. Aunque el navegador también comprueba algunas restricciones, el servidor valida todos los envíos.
+
+## 8. Mantener el recorrido comprensible
+
+La aplicación ya permite leer artículos y crearlos con una cuenta autorizada; la administración incorpora edición y borrado. Cada responsabilidad tiene un lugar: los datos en el modelo, la entrada en el formulario, la decisión en la view, las direcciones en las URLs y la presentación en los templates.
+
+Para volver a trabajar después de cerrar la terminal, entra en `web-articulos`, activa `.venv` y ejecuta `python3 manage.py runserver`. No hay que recrear el proyecto ni repetir las migraciones mientras no existan cambios pendientes.
+
+Cuando aparece un error, la terminal muestra su excepción y archivo implicado:
+
+| Señal                  | Qué revisar                                                   |
+| ---------------------- | ------------------------------------------------------------- |
+| Conexión rechazada     | Que `runserver` esté activo y la dirección use su puerto.     |
+| `404`                  | Que exista la ruta y, en un detalle, el artículo solicitado.  |
+| `TemplateDoesNotExist` | Nombre del template, carpeta y registro de la aplicación.     |
+| `NoReverseMatch`       | Nombre de ruta y argumentos utilizados en `url` o `redirect`. |
+| `no such table`        | Que se hayan creado y aplicado las migraciones.               |
+
+`python3 manage.py check` detecta problemas de configuración, pero no confirma que todas las páginas funcionen. La configuración inicial y `runserver` están destinados al desarrollo local. Publicar requiere un servidor de producción, desactivar `DEBUG`, configurar dominios permitidos, HTTPS y secretos, y establecer permisos adecuados al sitio.
+
+Referencias: [proyecto y rutas](https://docs.djangoproject.com/en/5.2/intro/tutorial01/), [lenguaje de templates](https://docs.djangoproject.com/en/5.2/ref/templates/language/) y [formularios basados en modelos](https://docs.djangoproject.com/en/5.2/topics/forms/modelforms/).

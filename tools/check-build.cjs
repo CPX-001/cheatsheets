@@ -5,33 +5,14 @@ const { stripHTML, unescapeHTML } = require('hexo-util');
 
 const output = path.resolve('public');
 const search = JSON.parse(fs.readFileSync(path.join(output, 'search.json'), 'utf8'));
-const expected = [
-  'django',
-  'django-http-templates',
-  'django-datos-orm',
-  'django-formularios-crud',
-  'django-auth',
-  'django-arquitectura',
-  'django-testing-performance',
-  'django-produccion',
-  'django-glosario',
-  'docker',
-  'docker-dockerfile',
-  'docker-redes-datos',
-  'docker-compose',
-  'docker-diagnostico',
-  'docker-produccion',
-  'docker-glosario',
-  'redis',
-  'redis-datos',
-  'redis-patrones',
-  'redis-fastapi',
-  'redis-django',
-  'redis-operaciones',
-  'redis-concurrencia',
-  'redis-produccion',
-  'redis-glosario'
-];
+const titles = {
+  django: 'Django · Base',
+  docker: 'Docker · Base',
+  'docker-dockerfile': 'Docker · Dockerfile',
+  'docker-compose': 'Docker Compose',
+  redis: 'Redis · Base'
+};
+const expected = Object.keys(titles);
 assert.deepEqual(
   search.map((sheet) => sheet.path).sort(),
   expected.map((slug) => `/${slug}.html`).sort()
@@ -51,10 +32,8 @@ for (const sheet of search) {
     }
   }
   assert(html.includes('css/learning.css'), `Missing reading styles: ${slug}`);
-  assert(
-    html.includes(slug.endsWith('-glosario') ? 'learning-glossary' : 'learning-page-cards'),
-    `Inconsistent layout: ${slug}`
-  );
+  assert(html.includes('learning-page-cards'), `Inconsistent layout: ${slug}`);
+  assert.equal(sheet.title, titles[slug], `Incorrect guide title: ${slug}`);
   const headings = [...source.matchAll(/^## (.+)$/gm)].map((match) => match[1]);
   const rendered = [...html.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/g)].map((match) =>
     unescapeHTML(stripHTML(match[1])).replace(/^#/, '')
@@ -81,14 +60,44 @@ for (const sheet of search) {
 }
 const homepage = fs.readFileSync(path.join(output, 'index.html'), 'utf8');
 assert(homepage.includes('Sheet Codes'));
+assert(
+  !/<div\b[^>]*class="[^"]*catalogue-grid[^"]*"[^>]*>\s*<\/div>/.test(homepage),
+  'Empty catalogue categories must not be displayed'
+);
 assert.equal(
   (homepage.match(/data-series-trigger/g) || []).length,
   3,
   'The catalogue must have three guide entries'
 );
-for (const family of ['django', 'docker', 'redis']) {
-  assert(homepage.includes(`id="series-${family}"`), `Missing topic menu: ${family}`);
+const catalogue = {
+  django: [['django', 'Base']],
+  docker: [
+    ['docker', 'Base'],
+    ['docker-dockerfile', 'Dockerfile'],
+    ['docker-compose', 'Docker Compose']
+  ],
+  redis: [['redis', 'Base']]
+};
+for (const [family, options] of Object.entries(catalogue)) {
+  const dialog = [...homepage.matchAll(/<dialog\b[^>]*>[\s\S]*?<\/dialog>/g)].find((match) =>
+    match[0].includes(`id="series-${family}"`)
+  )?.[0];
+  assert(dialog, `Missing topic menu: ${family}`);
+  const links = [...dialog.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)];
+  assert.deepEqual(
+    links.map((link) => [link[1], stripHTML(link[2]).trim()]),
+    options.map(([slug, label]) => [`/${slug}.html`, label]),
+    `Incorrect topic options: ${family}`
+  );
 }
+const obsoletePages = fs
+  .readdirSync(output)
+  .filter(
+    (file) =>
+      /^(django|docker|redis)-.*\.html$/.test(file) &&
+      !expected.includes(path.basename(file, '.html'))
+  );
+assert.deepEqual(obsoletePages, [], 'Removed subtopics must not remain in the build');
 assert(
   fs.readFileSync(path.join(output, 'css/learning.css'), 'utf8').includes('.learning-page-cards')
 );

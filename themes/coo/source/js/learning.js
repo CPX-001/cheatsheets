@@ -6,10 +6,12 @@
     let opener;
     let restoring = false;
     if (typeof dialog.showModal !== 'function') return;
+    const optionCount = dialog.querySelectorAll('.series-options a').length;
+    const preferredWidth = optionCount === 1 ? 320 : Math.min(1100, optionCount * 240 + 56);
     const placeDialog = () => {
       const gap = 14;
       const edge = 16;
-      const width = Math.min(1100, window.innerWidth - edge * 2);
+      const width = Math.min(preferredWidth, window.innerWidth - edge * 2);
       dialog.style.width = `${width}px`;
       const rect = opener.getBoundingClientRect();
       // Layout dimensions exclude the entrance animation's transform.
@@ -38,7 +40,7 @@
           opener = trigger;
           const scrollTop = window.scrollY;
           dialog.dataset.preparing = '';
-          dialog.style.width = `${Math.min(1100, window.innerWidth - 32)}px`;
+          dialog.style.width = `${Math.min(preferredWidth, window.innerWidth - 32)}px`;
           document.documentElement.classList.add('series-is-open');
           dialog.showModal();
           window.scrollTo({ top: scrollTop, behavior: 'instant' });
@@ -114,6 +116,67 @@
   const article = document.querySelector('.learning-content');
   if (!article) return;
 
+  const sidebar = document.querySelector('.learning-sidebar');
+  const sectionLinks = [...document.querySelectorAll('.learning-on-page a[href^="#"]')]
+    .map((link) => {
+      try {
+        return {
+          link,
+          target: document.getElementById(decodeURIComponent(link.hash.slice(1)))
+        };
+      } catch {
+        return { link, target: null };
+      }
+    })
+    .filter(({ target }) => target && article.contains(target));
+  let activeLink;
+  let sectionFrame;
+
+  // Track the reading position, including long sections whose heading is off screen.
+  const updateCurrentSection = () => {
+    sectionFrame = null;
+    if (!sectionLinks.length) return;
+    // Reserve the header's height even while it hides during a smooth anchor jump.
+    const rootStyles = getComputedStyle(document.documentElement);
+    const navbarHeight = parseFloat(rootStyles.getPropertyValue('--site-navbar-height')) || 0;
+    const scrollPadding = parseFloat(rootStyles.scrollPaddingTop) || 0;
+    const readingLine = navbarHeight + scrollPadding + 32;
+    let current = sectionLinks[0];
+    for (const section of sectionLinks) {
+      if (section.target.getBoundingClientRect().top > readingLine) break;
+      current = section;
+    }
+    if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) {
+      current = sectionLinks[sectionLinks.length - 1];
+    }
+    if (current.link === activeLink) return;
+    sectionLinks.forEach(({ link }) => {
+      if (link === current.link) link.setAttribute('aria-current', 'location');
+      else link.removeAttribute('aria-current');
+    });
+    activeLink = current.link;
+
+    // Keep a long desktop index readable without moving the document or keyboard focus.
+    if (sidebar && window.matchMedia('(min-width: 901px)').matches) {
+      const bounds = sidebar.getBoundingClientRect();
+      const linkBounds = activeLink.getBoundingClientRect();
+      if (linkBounds.top < bounds.top) sidebar.scrollTop += linkBounds.top - bounds.top - 8;
+      else if (linkBounds.bottom > bounds.bottom)
+        sidebar.scrollTop += linkBounds.bottom - bounds.bottom + 8;
+    }
+  };
+  const scheduleCurrentSection = () => {
+    if (sectionFrame == null) sectionFrame = window.requestAnimationFrame(updateCurrentSection);
+  };
+  window.addEventListener('scroll', scheduleCurrentSection, { passive: true });
+  ['resize', 'hashchange', 'pageshow', 'load'].forEach((event) => {
+    window.addEventListener(event, scheduleCurrentSection);
+  });
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(scheduleCurrentSection).observe(article);
+  }
+  scheduleCurrentSection();
+
   // Section navigation updates the shareable URL without adding a Back step.
   document.querySelector('.learning-page').addEventListener('click', (event) => {
     const link = event.target.closest('a[href^="#"]');
@@ -136,10 +199,7 @@
       behavior: reduceMotion.matches ? 'instant' : 'smooth',
       block: 'start'
     });
-    document.querySelectorAll('.learning-sidebar a').forEach((item) => {
-      if (item === link) item.setAttribute('aria-current', 'location');
-      else item.removeAttribute('aria-current');
-    });
+    scheduleCurrentSection();
   });
 
   // Animate one measured height, retaining native details and keyboard behavior.

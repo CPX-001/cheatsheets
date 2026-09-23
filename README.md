@@ -1,6 +1,10 @@
 # Sheet Codes
 
-Apuntes de Django, Docker y Redis en español: 22 temas y 3 glosarios.
+Apuntes de Django, Docker y Redis en español: una guía **Base** por tecnología.
+Cada guía es independiente y desarrolla fundamentos e implementación con
+ejemplos explicados, partiendo de Python y terminal básicos.
+Docker incluye además **Dockerfile** y **Docker Compose** para profundizar
+después de los fundamentos.
 
 **Web:** https://app.sheet-codes.workers.dev
 
@@ -12,13 +16,15 @@ npx pnpm@10.32.1 install --frozen-lockfile
 npm run dev
 ```
 
-Abre http://localhost:4000. Los 25 documentos están en `source/_posts/`.
+Abre http://localhost:4000. Los cinco documentos están en `source/_posts/`.
 La plantilla de lectura es `themes/coo/layout/learning.ejs`; los estilos comunes,
 `themes/coo/source/css/learning.css`. El catálogo conserva los tres menús de temas
-de la versión publicada. Las rutas existentes se mantienen.
+de la versión publicada. Django y Redis ofrecen «Base»; Docker ofrece «Base»,
+«Dockerfile» y «Docker Compose». Se mantienen las rutas principales `/django.html`,
+`/docker.html` y `/redis.html`; las ampliaciones usan `/docker-dockerfile.html`
+y `/docker-compose.html`.
 
-Los temas usan `learning-page-cards`; los tres glosarios comparten
-`learning-glossary`. `disableNunjucks: true` permite explicar templates Django
+Las guías usan `learning-page-cards`. `disableNunjucks: true` permite explicar templates Django
 sin que Hexo intente ejecutar su sintaxis. El índice se genera a partir de los
 encabezados del documento.
 
@@ -30,14 +36,15 @@ npm run build
 npm run test:build
 ```
 
-La comprobación exige exactamente las 25 rutas, las tres familias del catálogo,
+La comprobación exige exactamente las cinco rutas y sus opciones de menú,
 estilos de lectura consistentes, todos los encabezados renderizados y enlaces
 internos válidos. Los cambios de interfaz requieren además comprobar búsqueda,
 menús, copia de código, navegación con teclado y pantallas estrechas.
 
 Los ejemplos explican en qué terminal, archivo o intérprete se ejecutan.
-Django utiliza la serie 5.2; los ejemplos de contenedores, Python 3.12 y Redis 8.
-El contenido enlaza tutoriales didácticos para ampliar los conceptos.
+Cada guía indica sus requisitos y explica las funciones y parámetros que introduce.
+Las referencias oficiales complementan el contenido. Los temas especializados
+se incorporarán gradualmente; no hay ejercicios ni laboratorios descargables.
 
 ## Publicación en Cloudflare
 

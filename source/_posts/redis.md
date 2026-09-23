@@ -1,120 +1,315 @@
 ---
-title: 'Redis'
+title: 'Redis · Base'
 date: '2026-09-18'
-updated: '2026-09-19'
+updated: '2026-09-21'
 layout: 'learning'
 language: 'es'
 disableNunjucks: true
 icon: 'redis'
 categories: ['Database']
-intro: 'Qué es el servidor Redis, qué hace un cliente y cómo una aplicación utiliza claves y estructuras en memoria sin confundirlas con sus objetos Python.'
-heading: 'Fundamentos'
-eyebrow: 'Ruta 01 de 8 · Empieza aquí'
+intro: 'Servidor, claves, caducidad y conexión desde Python. Fundamentos para implementar una caché y comprender cómo se guarda, recupera y actualiza la información.'
+heading: 'Base'
+eyebrow: 'Fundamentos'
 learning_classes: 'learning-page learning-redis learning-page-cards'
 background: 'bg-gradient-to-r from-red-700 to-red-900 !text-white redis-card'
 ---
 
-## 1. Qué es Redis y por qué aparece junto a una base de datos
+## 1. Qué es Redis y qué papel cumple
 
-### Un servidor de estructuras de datos
+Redis es un servidor que almacena datos y recibe comandos de otros programas. Mantiene los datos de trabajo en memoria, por lo que resulta útil para acceder repetidamente a información pequeña: resultados de consultas, contadores o preferencias temporales.
 
-Redis es un proceso servidor al que otros programas envían comandos. Mantiene sus datos de trabajo en memoria y ofrece operaciones sobre cadenas, hashes, listas, conjuntos y otras estructuras. Puede persistir datos y replicarlos según la configuración, pero esas garantías no se deducen de haberlo instalado.
+Una **caché** conserva una copia de información disponible en otro lugar. Por ejemplo, un catálogo puede guardar sus artículos en un archivo o una base de datos y mantener en Redis los que se consultan con frecuencia. Si desaparece la copia, el catálogo vuelve a leer el origen. El origen sigue siendo la referencia para decidir cuál es el dato correcto.
 
-En una web de artículos, una base SQL puede ser la fuente de verdad del texto y su estado de publicación. Redis puede conservar durante un tiempo el resultado de una lectura costosa, contar visitas o coordinar trabajo. Esas funciones tienen requisitos diferentes: perder una copia de caché obliga a recalcular; perder una tarea pendiente puede significar que nunca se ejecute.
+Hay tres componentes distintos:
 
-Redis no es solo un diccionario dentro de Python. Es un servicio al que pueden conectarse varios procesos e incluso máquinas. Esa separación permite compartir datos entre workers, pero introduce conexiones, serialización, latencia y posibles fallos de red.
-
-## 2. Servidor, terminal y biblioteca cliente
-
-### Tres piezas que suelen confundirse
+| Componente     | Función                                                                |
+| -------------- | ---------------------------------------------------------------------- |
+| `redis-server` | Ejecuta el servidor y mantiene los datos.                              |
+| `redis-cli`    | Envía comandos desde la terminal.                                      |
+| `redis-py`     | Permite enviar comandos desde Python; se instala como paquete `redis`. |
 
 ```text
-terminal del host ── docker ── arranca el proceso Redis
-                                      ↑
-redis-cli ─────── comandos Redis ──────┤
-                                      │
-aplicación Python ── redis-py ─────────┘
+redis-cli ────────────────┐
+                         ├── servidor Redis ── datos en memoria
+programa Python → cliente┘
 ```
 
-El **servidor** ejecuta los comandos y mantiene las claves. `redis-cli` es un cliente de terminal para enviar comandos manualmente. La biblioteca Python `redis`, conocida como redis-py, es otro cliente: traduce llamadas Python al protocolo de Redis y convierte sus respuestas. `pip install redis` instala esa biblioteca, no arranca el servidor.
+La variable Python que representa al cliente contiene la configuración de conexión; los datos guardados pertenecen al servidor. Cerrar un programa Python no borra automáticamente las claves de Redis. Otro proceso conectado al mismo servidor y base puede recuperarlas.
 
-Docker es una forma de ejecutar el servidor con su entorno. Si ya tienes `redis-apuntes` del [tema de Docker](/docker.html), reutilízalo; no intentes crear otro con el mismo nombre. Si no tienes un Redis local y Docker está disponible, en la terminal del host:
+## 2. Arrancar el servidor y conectar la terminal
+
+Los comandos de instalación siguientes corresponden a **Debian o Ubuntu**, también dentro de WSL con una de esas distribuciones. Instalan los paquetes disponibles en la distribución:
 
 ```bash
-docker run -d --name redis-apuntes -p 127.0.0.1:6379:6379 redis:8-alpine
-docker exec -it redis-apuntes redis-cli
+sudo apt update
+sudo apt install redis-server redis-tools python3-venv
 ```
 
-El segundo comando abre el cliente dentro del contenedor. Ahora los comandos que escribes pertenecen a Redis, no a Bash ni a Python:
+La [documentación oficial de instalación](https://redis.io/docs/latest/operate/oss_and_stack/install/install-stack/apt/) describe además el repositorio de Redis para instalar sus versiones recientes. Las operaciones de esta página funcionan con Redis 6 o posterior.
+
+En una terminal, inicia una instancia local independiente:
+
+```bash
+redis-server --bind 127.0.0.1 --port 6380 --save "" --appendonly no
+```
+
+`--bind` limita las conexiones a esta máquina. `--port` elige el puerto `6380`; el puerto habitual es `6379`, donde la instalación puede haber iniciado otro servicio. `--save ""` y `--appendonly no` desactivan las escrituras de persistencia: los datos nuevos de esta instancia no se guardan en disco.
+
+La terminal queda ocupada por el servidor y sus mensajes. Debe permanecer abierta mientras se ejecutan los ejemplos. `Ctrl+C` lo detiene. Si el puerto ya está ocupado, el arranque falla; hay que elegir otro puerto y usarlo también en los clientes.
+
+En una **segunda terminal**, abre el cliente:
+
+```bash
+redis-cli -h 127.0.0.1 -p 6380
+```
+
+`-h` indica la máquina y `-p` el puerto. A partir de ahora, las líneas introducidas son comandos Redis:
 
 ```text
 PING
-SET mensaje "Redis responde"
-GET mensaje
-DEL mensaje
 ```
 
-Esperas `PONG`, `OK`, el texto guardado y el número de claves eliminadas. `exit` sale del cliente; el servidor sigue activo. El puerto se publicó solo en la interfaz local del host para estas pruebas de desarrollo.
+La respuesta `PONG` confirma que el cliente ha llegado al servidor. `exit` cierra el cliente y devuelve la terminal normal; no detiene Redis.
 
-## 3. Qué ocurre al enviar un comando
+## 3. Claves, valores y tiempo de vida
 
-### Una petición de red con un resultado
+Una **clave** es un nombre que identifica un valor. `base:saludo` utiliza un prefijo para distinguir los datos de esta aplicación; los dos puntos forman parte del texto, no crean carpetas.
 
-Al llamar a `GET mensaje`, el cliente codifica el comando, lo envía por una conexión y espera una respuesta. Redis localiza la clave y ejecuta la operación admitida para su tipo. El cliente interpreta la respuesta. Redis no importa tus clases Python ni ejecuta el código de tu view.
+Dentro de `redis-cli`, esta secuencia guarda, consulta y elimina una cadena:
 
-El procesamiento ordinario de comandos se ordena en el servidor, lo que permite operaciones individuales atómicas. Eso no significa que toda la implementación use un único hilo para cualquier trabajo, ni que varias llamadas separadas se conviertan en una transacción. Mientras un comando costoso ocupa la ejecución, otras peticiones pueden esperar. Por eso importa el tamaño de la operación, además de que los datos estén en memoria.
+```text
+SET base:saludo "Hola desde Redis"
+GET base:saludo
+EXISTS base:saludo
+DEL base:saludo
+GET base:saludo
+```
 
-Una **clave** identifica un valor. `articulo:42:resumen:v1` es una convención legible; los dos puntos no crean carpetas ni relaciones. El identificador 42 es un ejemplo de nombre: en una aplicación real usarías el identificador del artículo que has cargado. El tipo pertenece al valor y determina qué comandos son válidos.
+Las respuestas son `OK`, el saludo, `1`, `1` y `(nil)`. `SET` escribe; `GET` recupera; `EXISTS` indica cuántas de las claves indicadas existen; `DEL` devuelve cuántas eliminó. `(nil)` significa que no existe un valor para esa clave. Una cadena vacía `""` sí es un valor existente.
 
-## 4. Conectar desde Python con el contexto completo
+El **TTL**, tiempo de vida restante, permite que una clave desaparezca automáticamente. Para conservar un título durante 60 segundos:
 
-### La URL describe el servidor, no una ruta web
+```text
+SET base:titulo "Introducción a HTTP" EX 60
+TTL base:titulo
+```
 
-En un entorno virtual de Python, ejecuta en la terminal `python -m pip install 'redis>=6,<9'`. Crea `conexion_redis.py` con este contenido y ejecútalo con `python conexion_redis.py` desde el host donde se publicó el puerto:
+`EX 60` fija la caducidad al escribir. `TTL` devuelve los segundos restantes, que disminuyen aunque nadie lea la clave. Cuando caduca, `GET base:titulo` devuelve `(nil)`.
+
+| Resultado de `TTL`        | Significado                                                 |
+| ------------------------- | ----------------------------------------------------------- |
+| Cero o un número positivo | Segundos restantes; cero indica que está próxima a caducar. |
+| `-1`                      | La clave existe sin caducidad.                              |
+| `-2`                      | La clave no existe.                                         |
+
+`EXPIRE base:titulo 120` establece una nueva caducidad sobre una clave existente; devuelve `1` si pudo aplicarla. Un `SET` ordinario reemplaza el valor **y elimina su TTL anterior**. Para una caché, conviene proporcionar `EX` en cada escritura. Leer con `GET` no prolonga la duración.
+
+El TTL controla cuánto tiempo se admite conservar una copia. No detecta si el origen cambió: una copia puede estar desactualizada antes de caducar.
+
+## 4. Elegir una estructura sencilla
+
+Cada clave tiene un tipo de valor. El comando debe corresponder a ese tipo: `GET` lee cadenas; para campos de un hash se utiliza `HGET`. Una operación incompatible produce `WRONGTYPE`.
+
+| Tipo     | Uso habitual                                         | Comandos representativos   |
+| -------- | ---------------------------------------------------- | -------------------------- |
+| Cadena   | Texto, JSON serializado o contador numérico.         | `SET`, `GET`, `INCR`.      |
+| Hash     | Campos de un registro que se consultan por separado. | `HSET`, `HGET`, `HGETALL`. |
+| Lista    | Elementos ordenados que admiten repeticiones.        | `RPUSH`, `LRANGE`.         |
+| Conjunto | Elementos únicos sin un orden definido.              | `SADD`, `SMEMBERS`.        |
+
+En `redis-cli`, un hash puede representar los campos de un artículo:
+
+```text
+HSET base:articulo:1 titulo "Introducción a HTTP" categoria "Web"
+HGET base:articulo:1 titulo
+HGETALL base:articulo:1
+TYPE base:articulo:1
+```
+
+`HSET` recibe la clave y parejas campo–valor. `HGET` devuelve el título; `HGETALL`, todos los campos y valores; `TYPE`, `hash`. Los valores textuales no se convierten automáticamente en números o booleanos.
+
+Para contar visitas, `INCR base:visitas:1` crea un contador con valor `1` si no existía y lo incrementa en cada llamada posterior. Redis realiza cada incremento como una sola operación; dos clientes no necesitan leer, sumar y escribir por separado.
+
+Una cadena con JSON será suficiente para la caché siguiente, porque el artículo se lee y reemplaza completo.
+
+## 5. Conectar desde Python
+
+Fuera de `redis-cli`, prepara una carpeta y un entorno virtual:
+
+```bash
+mkdir redis-base
+cd redis-base
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install 'redis>=5,<6'
+```
+
+Se utiliza la rama 5 de `redis-py`, compatible con los servidores Redis 6 y 7 disponibles en estas distribuciones. Instalar la biblioteca no instala ni inicia el servidor.
+
+En esa carpeta, crea **`conexion.py`**:
 
 ```python
-# conexion_redis.py
 from redis import Redis
 
-with Redis.from_url(
-    "redis://127.0.0.1:6379/0",
-    decode_responses=True,
-    socket_connect_timeout=1,
-    socket_timeout=1,
-) as r:
-    print(r.ping())
-    r.set("guia:saludo", "Hola desde Python", ex=60)
-    print(r.get("guia:saludo"))
-    print(r.ttl("guia:saludo"))
+
+def crear_cliente():
+    return Redis.from_url(
+        "redis://127.0.0.1:6380/0",
+        decode_responses=True,
+        socket_connect_timeout=1,
+        socket_timeout=1,
+    )
+
+
+if __name__ == "__main__":
+    with crear_cliente() as cliente:
+        print(cliente.ping())
+        cliente.set("base:python:saludo", "Hola desde Python", ex=60)
+        print(cliente.get("base:python:saludo"))
+        print(cliente.ttl("base:python:saludo"))
 ```
 
-`redis://` selecciona una conexión Redis sin TLS; `127.0.0.1` es el host; `6379`, el puerto; `/0`, la base lógica. `rediss://` indica TLS. La base lógica no es una carpeta ni una garantía de aislamiento entre aplicaciones. Dentro de un contenedor web de Compose, la dirección cambia normalmente a `redis://redis:6379/0`, donde `redis` es el nombre del servicio.
+Ejecuta `python3 conexion.py` con el servidor activo. El resultado será `True`, el saludo y un TTL cercano a `60`.
 
-`decode_responses=True` convierte respuestas de texto a cadenas Python; sin él, suelen llegar como bytes. No transforma JSON en diccionarios ni todas las respuestas en texto: un contador o TTL sigue siendo numérico. Los timeouts limitan esperas de conexión y de respuesta. Un fallo lanza una excepción; no equivale a que la clave no exista.
+`Redis` es la clase importada de la biblioteca. Su método `from_url()` construye un objeto cliente configurado. `crear_cliente()` es una función del programa que permite reutilizar esa configuración. La conexión se utiliza al enviar operaciones, como `ping()`.
 
-## 5. La memoria de Redis no es la memoria de tu proceso
+En la URL, `redis://` selecciona el protocolo, `127.0.0.1` identifica la máquina, `6380` el puerto y `/0` la base lógica. No es una URL que deba abrirse en el navegador. La base lógica organiza claves dentro del mismo servidor; no proporciona un servidor independiente.
 
-### Serializar define qué información compartes
+| Parámetro                  | Efecto                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------- |
+| `decode_responses=True`    | Devuelve el texto como `str` de Python; sin esta opción suele recibirse como `bytes`. |
+| `socket_connect_timeout=1` | Limita a un segundo la espera para establecer cada conexión.                          |
+| `socket_timeout=1`         | Limita la espera de operaciones sobre la conexión.                                    |
+| `ex=60`, en `set()`        | Guarda el valor con una caducidad de 60 segundos.                                     |
 
-Python no puede enviar un diccionario arbitrario con `SET` y esperar que otra aplicación conozca su representación interna. Una forma explícita de compartir un objeto pequeño es JSON. En el mismo contexto donde existe `r`, estas operaciones convierten entre diccionario y texto:
+Los timeouts no representan un límite global para todo el programa. `with` cierra las conexiones del cliente al salir del bloque; Redis continúa funcionando. El bloque `if __name__ == "__main__"` ejecuta la comprobación únicamente cuando se lanza este archivo, no cuando otro módulo importa `crear_cliente`.
+
+Los métodos corresponden a los comandos: `get()` devuelve texto o `None`; `set()` devuelve `True` al guardar; `exists()` y `delete()` devuelven cantidades; `ttl()` devuelve un entero. `decode_responses` no convierte todos esos resultados en cadenas. La [guía oficial de redis-py](https://redis.io/docs/latest/develop/clients/redis-py/) recoge la relación entre cliente y comandos.
+
+## 6. Representar objetos con JSON
+
+Un artículo puede ser un diccionario Python con identificador y título. `SET` necesita una representación almacenable, por lo que antes de enviarlo se convierte a texto JSON.
+
+La biblioteca estándar `json` proporciona `json.dumps(articulo)`, que convierte un diccionario en una cadena, y `json.loads(texto)`, que reconstruye los datos desde esa cadena. Por ejemplo, `{"id": 1, "titulo": "Introducción a HTTP"}` conserva su estructura al realizar ambas conversiones. `decode_responses=True` solo resuelve bytes → texto; la conversión texto → diccionario corresponde a `json.loads()`.
+
+El origen del catálogo será **`articulos.json`**, creado junto a `conexion.py`:
+
+```json
+{
+  "1": {"id": 1, "titulo": "Introducción a HTTP"},
+  "2": {"id": 2, "titulo": "Estructura de una URL"}
+}
+```
+
+Las claves de un objeto JSON son cadenas: el artículo con identificador numérico `1` se busca mediante la clave `"1"`. El archivo es el origen persistente; Redis almacenará copias temporales de cada artículo. El contenido del archivo permanece al cerrar Python o Redis.
+
+## 7. Implementar una caché de artículos
+
+El patrón **cache-aside** deja la consulta en manos de la aplicación: busca primero en Redis; si no encuentra una copia, lee el origen y guarda el resultado para próximas consultas.
+
+```text
+consultar artículo → ¿existe copia en Redis?
+                       sí → devolver copia (hit)
+                       no → leer archivo → guardar copia → devolver (miss)
+```
+
+Crea **`catalogo.py`** junto a los otros dos archivos:
 
 ```python
 import json
+from pathlib import Path
 
-resumen = {"id": 42, "titulo": "Entender HTTP"}
-r.set("articulo:42:resumen:v1", json.dumps(resumen), ex=60)
-texto = r.get("articulo:42:resumen:v1")
-recuperado = json.loads(texto) if texto is not None else None
+from redis.exceptions import ConnectionError, TimeoutError
+
+from conexion import crear_cliente
+
+ARCHIVO = Path(__file__).with_name("articulos.json")
+TTL_SEGUNDOS = 60
+
+
+def clave_articulo(articulo_id):
+    return f"base:catalogo:articulo:{articulo_id}"
+
+
+def leer_origen():
+    return json.loads(ARCHIVO.read_text(encoding="utf-8"))
+
+
+def obtener_articulo(cliente, articulo_id):
+    clave = clave_articulo(articulo_id)
+    try:
+        texto = cliente.get(clave)
+    except (ConnectionError, TimeoutError):
+        print("Redis no disponible: lectura desde el archivo")
+        return leer_origen().get(str(articulo_id))
+
+    if texto is not None:
+        print("Caché: hit")
+        return json.loads(texto)
+
+    print("Caché: miss; lectura desde el archivo")
+    articulo = leer_origen().get(str(articulo_id))
+    if articulo is not None:
+        try:
+            cliente.set(clave, json.dumps(articulo), ex=TTL_SEGUNDOS)
+        except (ConnectionError, TimeoutError):
+            print("Redis no disponible: copia sin guardar")
+    return articulo
+
+
+def cambiar_titulo(cliente, articulo_id, titulo):
+    articulos = leer_origen()
+    articulos[str(articulo_id)]["titulo"] = titulo
+    ARCHIVO.write_text(
+        json.dumps(articulos, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    try:
+        cliente.delete(clave_articulo(articulo_id))
+    except (ConnectionError, TimeoutError):
+        print("Archivo actualizado; la copia anterior puede durar hasta su TTL")
+
+
+if __name__ == "__main__":
+    with crear_cliente() as cliente:
+        print(obtener_articulo(cliente, 1))
+        print(obtener_articulo(cliente, 1))
+        cambiar_titulo(cliente, 1, "HTTP: peticiones y respuestas")
+        print(obtener_articulo(cliente, 1))
 ```
 
-Aquí `resumen` se define en el propio ejemplo; no procede todavía de una consulta SQL. En las integraciones lo obtendremos de una fuente concreta. `json.dumps` produce el texto que guarda Redis y `json.loads` recupera la estructura cuando hay un valor. Tras la caducidad, `GET` devuelve ausencia y hay que decidir qué hacer.
+`Path(__file__)` representa la ubicación de `catalogo.py`; `with_name()` señala el JSON de la misma carpeta, independientemente del directorio desde donde se lance Python. `read_text()` lee su contenido y `write_text()` lo reemplaza. Ambos especifican UTF-8 para conservar caracteres como las tildes.
 
-No utilices `if texto` para representar universalmente «no existe»: una cadena vacía también puede ser un valor válido. Comprueba `is None` cuando ese sea el contrato del cliente. Y no deserialices formatos capaces de ejecutar código si un tercero puede escribir el contenido.
+`cliente` se recibe como argumento y se reutiliza en todas las operaciones. `articulo_id` procede de las llamadas del bloque final. `clave_articulo()` genera el mismo nombre tanto al consultar como al invalidar. El segundo `get()`, aplicado al diccionario del archivo, es un método de Python: devuelve el artículo o `None` si falta.
 
-## 6. Elegir una función y sus garantías
+El parámetro `ensure_ascii=False` conserva los caracteres legibles en el JSON; `indent=2` lo presenta con sangría. `TTL_SEGUNDOS` fija la caducidad de cada copia. La comprobación `texto is not None` distingue una clave ausente de un valor existente.
 
-### Antes del comando, decide qué significa perder el dato
+Ejecuta `python3 catalogo.py`. Con la caché vacía aparecen un **miss**, un **hit** y otro **miss** después del cambio de título. El último resultado contiene el título actualizado, que también queda guardado en `articulos.json`. Las siguientes ejecuciones parten del archivo ya modificado; la primera lectura puede ser un hit si sigue existiendo la copia.
 
-Para una caché necesitas origen, caducidad e invalidación. Para un contador necesitas conocer qué pasa al repetir una petición. Para una cola necesitas entrega, confirmaciones y recuperación. Redis aporta piezas, pero el significado de esas operaciones pertenece a tu aplicación.
+**Invalidar** significa eliminar una copia que ha quedado desactualizada. `cambiar_titulo()` escribe primero el origen y después elimina su clave de Redis. Editar directamente el JSON evita esa función: la copia antigua puede seguir devolviéndose hasta caducar. TTL e invalidación son mecanismos distintos.
 
-Continúa con [datos y TTL](/redis-datos.html) para entender tipos y caducidad; [patrones](/redis-patrones.html) explica cuándo utilizarlos. Las integraciones de [Django](/redis-django.html) y [FastAPI](/redis-fastapi.html) muestran qué código conecta cada pieza. Como segunda explicación didáctica, [Real Python: Python y Redis](https://realpython.com/python-redis/) desarrolla la relación entre servidor, cliente y estructuras.
+El archivo permite observar el recorrido completo, pero su reescritura no coordina escritores simultáneos. Para una aplicación con varios procesos que modifican datos, el origen debe proporcionar esa coordinación, normalmente mediante una base de datos. El patrón de caché seguiría siendo el mismo.
+
+## 8. Interpretar fallos y límites
+
+Una clave ausente y un servidor inaccesible son situaciones distintas. La primera devuelve `None`; la segunda produce una excepción. El catálogo captura únicamente fallos de conexión o timeout de Redis y continúa desde el archivo. Un JSON incorrecto o un archivo inexistente siguen produciendo su error correspondiente.
+
+| Síntoma                      | Comprobación                                                         |
+| ---------------------------- | -------------------------------------------------------------------- |
+| Conexión rechazada           | Servidor activo y mismo host/puerto en ambos clientes.               |
+| `None` inesperado            | Nombre de clave, base lógica y TTL; una clave caducada ya no existe. |
+| `WRONGTYPE`                  | `TYPE clave` y comando adecuado a su estructura.                     |
+| Título antiguo               | Caducidad y paso de invalidación después de guardar.                 |
+| `ModuleNotFoundError: redis` | Entorno virtual activo y biblioteca instalada con su Python.         |
+
+Para inspeccionar solo las claves del catálogo desde la terminal normal:
+
+```bash
+redis-cli -h 127.0.0.1 -p 6380 --scan --pattern 'base:catalogo:*'
+```
+
+`--scan` recorre las claves de forma incremental; `--pattern` filtra los nombres. Evita borrar toda la base para corregir una entrada: `DEL` permite eliminar la clave concreta.
+
+Redis dispone de persistencia en disco, pero esta instancia la tiene desactivada. **Persistencia y caducidad son independientes**: habilitar persistencia no convierte una clave temporal en permanente. Una caché debe poder reconstruirse; almacenar datos únicos exige otras garantías. La [documentación de caducidad](https://redis.io/docs/latest/commands/expire/) detalla cómo afectan las operaciones al tiempo de vida.
+
+Finalmente, mantener una copia añade red, memoria y serialización. Para un JSON tan pequeño no se presupone una mejora de velocidad: el ejemplo muestra el mecanismo. En una aplicación real, la caché se justifica cuando evita un trabajo repetido cuyo coste se ha medido.

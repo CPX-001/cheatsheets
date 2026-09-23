@@ -15,9 +15,6 @@
         <nav aria-label="Índice de esta página"><ol>
           <% (page.sections || []).forEach(function(section) { %>
             <li><a href="<%= section.h2.anchor %>"><%- section.h2.title %></a></li>
-            <% section.h3.forEach(function(item) { %>
-              <li class="learning-subsection"><a href="<%= item.anchor %>"><%- item.title %></a></li>
-            <% }); %>
           <% }); %>
         </ol></nav>
       </details>

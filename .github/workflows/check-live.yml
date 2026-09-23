@@ -46,20 +46,27 @@ jobs:
                   assert final_url == origin + '/django', final_url
               if route == '/search.json':
                   sheets = json.loads(body)
-                  assert len(sheets) == 25
+                  expected_titles = {
+                      '/django.html': 'Django · Base',
+                      '/docker.html': 'Docker · Base',
+                      '/docker-dockerfile.html': 'Docker · Dockerfile',
+                      '/docker-compose.html': 'Docker Compose',
+                      '/redis.html': 'Redis · Base',
+                  }
+                  assert {sheet['path']: sheet['title'] for sheet in sheets} == expected_titles
                   assert all(sheet.get('title') and sheet['path'].startswith('/') for sheet in sheets)
                   assert {sheet['path'].split('-')[0].split('.')[0] for sheet in sheets} == {'/django', '/docker', '/redis'}
                   for sheet in sheets:
                       with urlopen(Request(origin + sheet['path'], headers=headers), timeout=20) as response:
                           html = response.read().decode()
                           assert response.status == 200
-                      layout = 'learning-glossary' if '-glosario.' in sheet['path'] else 'learning-page-cards'
-                      assert layout in html and 'css/learning.css' in html, sheet['path']
+                      assert sheet['title'] == expected_titles[sheet['path']], sheet['path']
+                      assert 'learning-page-cards' in html and 'css/learning.css' in html, sheet['path']
                       assert 'Cómo trabajar con estos apuntes' not in html, sheet['path']
                   print(f'All {len(sheets)} topic pages have their shared reading layout')
               if route == '/site-version.json':
                   version = json.loads(body)
-                  assert version['guides'] == 25
+                  assert version['guides'] == 5
                   if os.environ.get('EXPECTED_REVISION'):
                       assert version['revision'] == os.environ['EXPECTED_REVISION'], version
               if route in ['/robots.txt', '/sitemap.xml']:

@@ -1,124 +1,194 @@
 ---
-title: 'Docker · Imágenes y Dockerfile'
-date: '2026-09-18'
-updated: '2026-09-19'
+title: 'Docker · Dockerfile'
+date: '2026-09-21'
+updated: '2026-09-21'
 layout: 'learning'
 language: 'es'
 disableNunjucks: true
 icon: 'docker'
 categories: ['Toolkit']
-intro: 'Cómo una carpeta de código se convierte en una imagen; qué ocurre durante el build y qué se ejecuta al arrancar un contenedor.'
-heading: 'Imágenes y Dockerfile'
-eyebrow: 'Ruta 02 de 6 · Construye tu aplicación'
+intro: 'Cómo definir una imagen: instrucciones del Dockerfile, contexto de construcción, caché y ciclo de actualización de un servidor Nginx.'
+heading: 'Dockerfile'
+eyebrow: 'Construcción de imágenes'
 learning_classes: 'learning-page learning-docker learning-page-cards'
+background: 'bg-gradient-to-r from-sky-700 to-blue-700 !text-white'
 ---
 
-## 1. Construcción y ejecución son momentos distintos
+## 1. Del Dockerfile al contenedor
 
-### Un Dockerfile describe cómo preparar el entorno
-
-`docker build` lee instrucciones, copia archivos e instala dependencias para producir una imagen. `docker run` crea un contenedor desde esa imagen y ejecuta su comando principal. Una base de datos o una clave de producción no tiene por qué estar disponible durante la construcción; normalmente pertenece al entorno donde arrancará la aplicación.
-
-El **contexto de build** es el conjunto de archivos que Docker puede usar para copiar al construir. En `docker build -t web-articulos:dev .`, el punto selecciona la carpeta actual como contexto. Un `COPY` no puede tomar libremente archivos de cualquier parte del ordenador. `.dockerignore` excluye archivos antes de enviarlos al constructor.
-
-## 2. Un Dockerfile con una aplicación concreta
-
-### Proyecto Django y dependencias
-
-Usaremos el proyecto Django `config` con `manage.py` creado en [el primer tema de Django](/django.html). El ejemplo asume sus settings de desarrollo y no sustituye el código de la aplicación. Si todavía no tienes ese proyecto, crea primero su estructura mínima; Docker no genera `manage.py` ni instala una aplicación que no hayas copiado.
-
-Junto a `manage.py`, crea `requirements.txt`:
+Un **Dockerfile** es un archivo de texto que describe cómo preparar una imagen: de qué entorno partir, qué archivos incorporar y qué comando utilizar al arrancar. Docker lee sus instrucciones durante la **construcción**. El resultado es una imagen que permite crear contenedores con ese contenido.
 
 ```text
-Django>=5.2,<5.3
-redis>=6,<9
-gunicorn>=23,<24
+Dockerfile + archivos del proyecto
+              ↓ docker build
+            imagen
+              ↓ docker run
+          contenedor activo
 ```
 
-Django ejecuta la aplicación; `redis` es el cliente que utilizaremos al conectar la caché; Gunicorn permite el ejemplo de servidor de producción. Este rango acota versiones compatibles para los ejemplos, pero un entorno que exige reconstrucciones exactas debe fijar también versiones resueltas y la imagen base.
+Construir no equivale a arrancar la aplicación. La imagen conserva archivos y valores de configuración; el contenedor ejecuta el programa. Crear otro contenedor utiliza esa imagen sin repetir las instrucciones del Dockerfile.
 
-Crea este `Dockerfile` en la misma carpeta:
+Esta guía desarrolla la construcción presentada en [Docker · Base](/docker.html). Se necesita Docker instalado, el motor arrancado y una terminal Bash conectada al motor local. `docker version` debe mostrar información de cliente y servidor.
+
+El ejemplo será una página de una biblioteca servida por **Nginx**, un servidor web que recibe peticiones HTTP y devuelve archivos. Su imagen oficial ya incluye el programa; la imagen propia añadirá el HTML y declarará su arranque.
+
+## 2. Preparar los archivos del proyecto
+
+Los archivos se guardan en el **host**, la máquina desde la que se trabaja. Desde la carpeta en la que se guardará el proyecto:
+
+```bash
+mkdir -p web-docker/sitio
+cd web-docker
+```
+
+`mkdir -p` crea las carpetas necesarias y acepta las que ya existen. Si el proyecto de la guía Base ya está preparado, se puede reutilizar entrando directamente en `web-docker`. Los siguientes comandos se ejecutan desde esa carpeta.
+
+Con un editor, preparar esta estructura:
+
+```text
+web-docker/
+├── Dockerfile
+├── .dockerignore
+└── sitio/
+    └── index.html
+```
+
+`Dockerfile`, sin extensión, contiene las instrucciones. `.dockerignore` filtra los archivos disponibles durante la construcción. `sitio/index.html` será la página que se incorpora a la imagen:
+
+```html
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <title>Biblioteca</title>
+  </head>
+  <body>
+    <h1>Biblioteca del barrio</h1>
+    <p>Horario: de lunes a viernes, de 9:00 a 18:00.</p>
+  </body>
+</html>
+```
+
+HTML describe el documento que interpreta el navegador. `doctype` declara el formato; `lang` indica el idioma y `charset` permite representar las tildes. `title` da nombre a la pestaña. Dentro de `body`, `h1` contiene el encabezado y `p`, un párrafo. Nginx entrega este archivo sin ejecutar Python ni consultar una base de datos.
+
+## 3. Leer las instrucciones del Dockerfile
+
+Guardar este contenido en `web-docker/Dockerfile`:
 
 ```dockerfile
-FROM python:3.12-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-WORKDIR /app
-COPY requirements.txt .
-RUN python -m pip install --no-cache-dir -r requirements.txt
-
-RUN useradd --create-home --uid 10001 --user-group app \
-    && chown app:app /app
-COPY --chown=app:app . .
-USER app
-
-EXPOSE 8000
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+FROM nginx:stable-alpine
+WORKDIR /usr/share/nginx/html
+COPY sitio/ ./
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
 ```
 
-### Leer las instrucciones por su efecto
+### Seleccionar una base y copiar archivos
 
-`FROM` elige la base que ya contiene Python. `WORKDIR` establece la carpeta para instrucciones siguientes y para el comando inicial. `COPY requirements.txt` introduce el manifiesto; `RUN ... pip install` se ejecuta al construir y sus archivos quedan en la imagen. `COPY . .` incorpora el código. Crear un usuario y seleccionarlo con `USER` evita ejecutar la aplicación como root.
+**`FROM`** selecciona la imagen de partida. `nginx` es su nombre; `stable-alpine` es una etiqueta que identifica la variante estable basada en Alpine, una distribución Linux pequeña. Se heredan los archivos de Nginx y su configuración. La etiqueta puede actualizarse en el registro y no identifica para siempre los mismos archivos.
 
-Las variables `PYTHONDONTWRITEBYTECODE` y `PYTHONUNBUFFERED` afectan a Python: evitan archivos bytecode y facilitan que los logs lleguen sin el buffer habitual. `EXPOSE 8000` documenta el puerto previsto, pero no lo publica en el host. `CMD` establece el comando predeterminado de ejecución. La forma de lista evita un shell intermedio para ese comando.
+**`WORKDIR`** fija el directorio de trabajo dentro de la imagen. En este caso, `/usr/share/nginx/html` es la carpeta que la configuración de Nginx sirve por defecto. Si la ruta no existe, Docker la crea. También será el directorio de trabajo predeterminado al ejecutar el contenedor.
 
-Aquí `runserver` mantiene un entorno de desarrollo. Escucha en `0.0.0.0` dentro del contenedor porque escuchar solo en `127.0.0.1` limitaría el servicio a su propia interfaz local. El siguiente tema detalla por qué eso es independiente del puerto que publicas en el host.
+**`COPY`** incorpora archivos del proyecto. Sus dos rutas pertenecen a entornos distintos:
 
-### Excluir lo que no debe formar parte de la imagen
+| Parte    | Dónde se interpreta                           | Resultado                                    |
+| -------- | --------------------------------------------- | -------------------------------------------- |
+| `sitio/` | Dentro del contexto de construcción del host. | Selecciona el contenido de la carpeta local. |
+| `./`     | Dentro de la imagen, respecto a `WORKDIR`.    | Lo coloca en `/usr/share/nginx/html/`.       |
 
-Crea `.dockerignore` junto al Dockerfile:
+El archivo resultante es `/usr/share/nginx/html/index.html` y sustituye la bienvenida de Nginx. `WORKDIR` no cambia la carpeta de la terminal del host ni el origen desde el que busca `COPY`. La copia queda incorporada a la imagen; no establece una conexión permanente con el archivo local.
+
+### Declarar el puerto y el arranque
+
+**`EXPOSE 80`** documenta el puerto que utiliza el servicio. No configura Nginx ni publica el puerto hacia el host. Nginx ya escucha en el puerto 80 por su configuración; el acceso desde el navegador se establecerá al ejecutar el contenedor.
+
+**`CMD`** guarda el comando predeterminado de arranque en una lista. Cada elemento tiene una función:
+
+| Elemento        | Función                                                                                      |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| `"nginx"`       | Nombre del programa que inicia el servidor.                                                  |
+| `"-g"`          | Opción de Nginx que permite indicar una directiva global.                                    |
+| `"daemon off;"` | Directiva que mantiene el servidor en primer plano; el punto y coma pertenece a su sintaxis. |
+
+El contenedor permanece activo mientras su proceso principal continúa. Mantener Nginx en primer plano permite que Docker gestione su ejecución. Este comando no se ejecuta durante la construcción.
+
+La imagen oficial ya declara ese puerto y ese `CMD`; aquí aparecen explícitamente para mostrar su función. Además, se hereda su **`ENTRYPOINT`**, el programa `/docker-entrypoint.sh`: prepara la configuración y después ejecuta el comando de `CMD`. En este ejemplo no es necesario reemplazarlo.
+
+### Distinguir RUN de CMD
+
+**`RUN`** ejecuta un comando durante la construcción, por ejemplo para instalar dependencias cuyos archivos deben permanecer en la imagen. Esta web no lo necesita porque Nginx ya viene instalado.
+
+`CMD` define el arranque futuro; `RUN` realiza una operación para preparar la imagen. Iniciar un servidor mediante `RUN` no lo convierte en el proceso principal de los contenedores posteriores. Su arranque se configura mediante `CMD` y, cuando existe, `ENTRYPOINT`.
+
+## 4. Entender el contexto y la caché
+
+El **contexto de construcción** es el conjunto de archivos disponibles para construir una imagen. En este proyecto será la carpeta `web-docker`: incluye el Dockerfile y `sitio/`. `COPY` busca su origen dentro de ese contexto, aunque el destino sea una ruta completamente distinta dentro de la imagen.
+
+En `.dockerignore`, guardar:
 
 ```text
 .git
-.venv
-__pycache__
-*.pyc
 .env
-.env.*
-db.sqlite3
-media
-node_modules
 ```
 
-El entorno virtual del host no es el de la imagen. Un archivo de base local y los uploads son estado, no código. Los archivos de secretos tampoco deben copiarse. Borrar un secreto en una instrucción posterior no garantiza retirarlo de las capas anteriores de una imagen ya construida.
+Cada línea excluye una ruta. `.git` contiene el historial de un repositorio y `.env` suele guardar configuración local; no necesitan existir para incluirlos en el filtro. Los archivos excluidos no están disponibles para `COPY`. Este archivo afecta a la construcción, no a los montajes que puedan configurarse después al ejecutar un contenedor.
 
-## 3. Construir, arrancar y verificar
+Docker puede **reutilizar resultados anteriores** cuando una instrucción y sus entradas no han cambiado. Por eso una segunda construcción suele ser más rápida. Si cambia `sitio/index.html`, el siguiente `build` debe actualizar el paso `COPY` y los pasos que dependan de él.
 
-### Un nombre de imagen no es un nombre de contenedor
+El orden importa: las operaciones costosas que no cambian con frecuencia suelen colocarse antes de copiar archivos que se editan continuamente. Aquí la imagen base ya contiene el programa, de modo que basta con copiar la página. No hace falta desactivar la caché para incorporar una modificación normal del HTML.
 
-En la terminal del host, dentro de la carpeta del proyecto:
+## 5. Construir la imagen y comprobar el resultado
+
+Desde `web-docker`:
 
 ```bash
-docker build -t web-articulos:dev .
-docker run -d --name web-articulos -p 127.0.0.1:8000:8000 web-articulos:dev
-docker exec web-articulos python manage.py migrate
-docker logs web-articulos
+docker build -t biblioteca-web:1 .
 ```
 
-`-t web-articulos:dev` etiqueta la imagen. `--name web-articulos` nombra el contenedor; son identidades diferentes aunque compartan texto. El comando `migrate` se ejecuta dentro del contenedor y crea las tablas de su SQLite de desarrollo. Abre la ruta que hayas definido, por ejemplo `http://127.0.0.1:8000/articulos/`.
+`build` inicia la construcción. `-t` asigna el nombre `biblioteca-web` y la etiqueta `1`, elegida para esta imagen local. El punto final selecciona la carpeta actual como contexto; allí se busca el archivo predeterminado `Dockerfile`. `biblioteca-web:1` es el nombre de una imagen, no una carpeta.
 
-En este primer ejemplo, el archivo SQLite queda en la capa del contenedor: sobrevivirá a `stop`/`start`, pero no a eliminarlo. No lo confundas con la persistencia que exige una aplicación real. Para trabajar con código editable y una base local durante el desarrollo, [Compose](/docker-compose.html) incorpora un bind mount con su contexto explicado.
+Al terminar, crear un contenedor:
 
-## 4. Capas y caché de construcción
+```bash
+docker run -d --name web-dockerfile -p 127.0.0.1:8081:80 biblioteca-web:1
+docker ps
+```
 
-### El orden puede evitar trabajo repetido
+`-d` deja el proceso en segundo plano. `--name` asigna un nombre al contenedor para administrarlo después. `-p` conecta el puerto local **8081** con el **80** del contenedor; `127.0.0.1` limita el acceso a la máquina local. Si 8081 está libre, permite ejecutar este contenedor junto al ejemplo de Base que utiliza 8080.
 
-Docker reutiliza resultados de instrucciones cuando sus entradas no han cambiado. Por eso copiamos e instalamos `requirements.txt` antes de copiar todo el código. Si editas una view, puede reutilizar la instalación de dependencias; si cambias `requirements.txt`, debe repetirla y rehacer los pasos posteriores afectados.
+Abrir `http://127.0.0.1:8081` debe mostrar «Biblioteca del barrio». `docker ps` confirma que el contenedor está activo; ver la página confirma que sirve el contenido esperado. La imagen permanece local: construirla no la publica en un registro.
 
-La caché del build no es Redis ni la memoria del contenedor. Es una forma de reutilizar resultados de construcción. `--no-cache` obliga a rehacer pasos, pero no debe ser la respuesta automática a un error de aplicación. Primero comprueba si reconstruiste la imagen y si el contenedor está usando esa nueva imagen.
+Si la página no aparece, consultar:
 
-Editar el Dockerfile no modifica contenedores existentes. Incluso si construyes de nuevo con la misma etiqueta, el contenedor antiguo sigue referenciando la imagen con la que se creó. Debes recrearlo. Compose puede coordinar esa sustitución con `up -d --build`.
+```bash
+docker logs --tail 30 web-dockerfile
+```
 
-## 5. CMD, ENTRYPOINT y configuración
+`logs` muestra la salida del programa; `--tail 30` limita la consulta a sus últimas 30 líneas. Los errores de Nginx ayudan a distinguir un problema de arranque de uno de acceso al puerto.
 
-### Cambiar el comando no reconstruye los archivos
+## 6. Incorporar cambios y recrear el contenedor
 
-Al escribir un comando después del nombre de imagen en `docker run`, sustituyes su `CMD`. En nuestro ejemplo, `docker run --rm web-articulos:dev python manage.py check` ejecuta la comprobación y termina. No levanta el servidor ni reutiliza la base escrita dentro de otro contenedor.
+Modificar el horario en `sitio/index.html` cambia el archivo del host. El contenedor sigue sirviendo la copia de su imagen. Para aplicar el cambio:
 
-`ENTRYPOINT` fija un ejecutable de entrada y `CMD` puede aportar sus argumentos predeterminados. Se combinan de forma distinta al caso anterior, por eso conviene inspeccionar la imagen antes de asumir qué reemplaza un comando. No necesitas un entrypoint propio para esta aplicación sencilla.
+```bash
+docker build -t biblioteca-web:1 .
+docker stop web-dockerfile
+docker rm web-dockerfile
+docker run -d --name web-dockerfile -p 127.0.0.1:8081:80 biblioteca-web:1
+```
 
-`ARG` proporciona valores de construcción y `ENV` define valores disponibles en el entorno de la imagen o contenedor. Ninguno debe usarse como almacén de secretos de build. Las credenciales de ejecución se proporcionan mediante el mecanismo del entorno de despliegue; las de construcción necesitan un mecanismo que no las incorpore a capas ni metadatos.
+La construcción actualiza la imagen asociada al nombre `biblioteca-web:1`. `stop` detiene el contenedor anterior y `rm` lo elimina; el nuevo `run` crea otro con la imagen actualizada. Recargar el navegador debe mostrar el nuevo horario.
 
-En [producción](/docker-produccion.html) conservaremos el principio de una imagen reproducible, separando código, configuración y estado.
+**Una imagen actualizada no modifica contenedores existentes.** Detener y volver a iniciar el mismo contenedor conserva su imagen original. En este ejemplo no se guardan datos generados dentro del contenedor: el HTML se conserva en el proyecto y puede incorporarse otra vez.
+
+Para buscar una versión actualizada de la imagen base durante la construcción:
+
+```bash
+docker build --pull -t biblioteca-web:1 .
+```
+
+`--pull` solicita comprobar la imagen de partida en el registro. Después sigue siendo necesario recrear el contenedor para utilizar el resultado.
+
+[Docker Compose](/docker-compose.html) explica cómo guardar en un archivo la construcción, los puertos y otras opciones de ejecución. El Dockerfile conserva su función: definir la imagen que Compose podrá construir y utilizar.
+
+Referencias: [instrucciones de Dockerfile](https://docs.docker.com/reference/dockerfile/), [contexto de construcción](https://docs.docker.com/build/concepts/context/), [caché de construcción](https://docs.docker.com/build/cache/) e [imagen oficial de Nginx](https://hub.docker.com/_/nginx).

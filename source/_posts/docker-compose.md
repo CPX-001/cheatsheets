@@ -1,137 +1,232 @@
 ---
-title: 'Docker · Compose y desarrollo'
-date: '2026-09-18'
-updated: '2026-09-19'
+title: 'Docker Compose'
+date: '2026-09-21'
+updated: '2026-09-21'
 layout: 'learning'
 language: 'es'
 disableNunjucks: true
 icon: 'docker'
 categories: ['Toolkit']
-intro: 'Cómo describir y ejecutar una aplicación con varios servicios; qué conecta Compose y qué sigue siendo responsabilidad de cada proceso.'
-heading: 'Compose y desarrollo'
-eyebrow: 'Ruta 04 de 6 · Une las piezas'
+intro: 'Cómo describir una aplicación en compose.yaml, construir su imagen y administrar sus contenedores, puertos y archivos.'
+heading: 'Docker Compose'
+eyebrow: 'Configuración y ejecución'
 learning_classes: 'learning-page learning-docker learning-page-cards'
+background: 'bg-gradient-to-r from-sky-700 to-blue-700 !text-white'
 ---
 
-## 1. Qué añade Compose
+## 1. Qué administra Compose
 
-### Declarar servicios relacionados
+Docker Compose permite guardar la configuración de una aplicación en `compose.yaml` y administrarla desde la terminal. Es útil incluso con un solo contenedor: los puertos, la imagen y los archivos compartidos quedan definidos en un archivo que puede reutilizarse.
 
-Con `docker run` puedes crear una web, un Redis, una red y sus montajes. Compose reúne esas decisiones en YAML y permite reproducirlas como un proyecto. Un **servicio** es la definición de un componente; un contenedor es una instancia ejecutada de esa definición. Un archivo `compose.yaml` no es una máquina virtual ni un proceso que sustituya a Django o Redis.
+La [base de Docker](/docker.html) explica imágenes, contenedores y puertos. Aquí se continúa con la misma web informativa de una biblioteca, servida por Nginx, sin añadir otros componentes.
 
-Usaremos el proyecto Django de [Dockerfile](/docker-dockerfile.html), con `manage.py`, el paquete `config`, `requirements.txt` y el Dockerfile ya explicados. Los comandos de este tema se ejecutan en la terminal del host, desde esa carpeta.
+| Elemento         | Función                                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| `docker compose` | Herramienta del cliente Docker que interpreta la configuración y envía órdenes al motor. |
+| `compose.yaml`   | Archivo de texto que describe los componentes de la aplicación y cómo deben ejecutarse.  |
+| Servicio         | Definición de un componente. En esta web se llamará `web`.                               |
+| Contenedor       | Instancia en ejecución creada a partir de esa definición y de una imagen.                |
+| Proyecto         | Agrupación con la que Compose identifica los contenedores y la red de una aplicación.    |
 
-## 2. Leer la configuración completa
+Compose no es un servidor que se ejecuta dentro del contenedor. Al terminar el comando, el motor puede mantener los servicios activos. Tampoco sustituye al Dockerfile: este define **cómo construir la imagen**, mientras Compose define **cómo ejecutar la aplicación** y puede solicitar su construcción.
 
-### Web y Redis comparten red, no localhost
+```text
+compose.yaml → build → Dockerfile + archivos → imagen
+      └────── puertos y montajes ───────────────┐
+                                imagen + configuración → contenedor
+```
 
-Crea `compose.yaml` junto al Dockerfile:
+## 2. Describir la web en compose.yaml
+
+### Archivos y punto de partida
+
+Se necesita Docker arrancado y Compose disponible. `docker compose version` comprueba la herramienta. Los comandos siguientes se ejecutan desde la carpeta `web-docker` del host, con esta estructura:
+
+```text
+web-docker/
+├── compose.yaml
+├── Dockerfile
+└── sitio/
+    └── index.html
+```
+
+El ejemplo utiliza el Dockerfile de la guía [Dockerfile](/docker-dockerfile.html), donde se explican sus instrucciones y el contexto de construcción. Su contenido es:
+
+```dockerfile
+FROM nginx:stable-alpine
+WORKDIR /usr/share/nginx/html
+COPY sitio/ ./
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+Parte de una imagen con Nginx, copia `sitio` a la carpeta que sirve el servidor y establece su arranque en primer plano. `EXPOSE` documenta el puerto; su publicación hacia el host se configura aparte.
+
+El archivo `sitio/index.html` contiene la página:
+
+```html
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <title>Biblioteca</title>
+  </head>
+  <body>
+    <h1>Biblioteca del barrio</h1>
+    <p>Horario: de lunes a viernes, de 9:00 a 18:00.</p>
+  </body>
+</html>
+```
+
+`title` da nombre a la pestaña; `h1` y `p` representan el título visible y el párrafo. Nginx devuelve el archivo al navegador.
+
+### Configuración completa
+
+Crear `compose.yaml` junto al Dockerfile:
 
 ```yaml
 services:
   web:
-    build: .
-    command: python manage.py runserver 0.0.0.0:8000
-    user: '${LOCAL_UID:-1000}:${LOCAL_GID:-1000}'
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - '127.0.0.1:8000:8000'
-    environment:
-      REDIS_URL: redis://redis:6379/0
-    volumes:
-      - .:/app
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  redis:
-    image: redis:8-alpine
-    command: redis-server --appendonly yes --appendfsync everysec
-    volumes:
-      - redis-datos:/data
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'PING']
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-volumes:
-  redis-datos:
+      - "127.0.0.1:8080:80"
 ```
 
-`build: .` construye la imagen web a partir de la carpeta actual. `command` establece su comando para este entorno de desarrollo. `.:/app` monta el código del host; la base SQLite de desarrollo también se escribe en esa carpeta si mantienes los settings iniciales. El volumen `redis-datos`, en cambio, lo administra Docker y contiene los archivos de persistencia de Redis.
+YAML expresa la jerarquía mediante **espacios de sangría**, sin tabulaciones. `services` agrupa los servicios; `web` es el nombre elegido para este componente. El guion bajo `ports` introduce un elemento de una lista.
 
-Compose crea una red del proyecto y registra nombres de servicio. Desde `web`, el destino es `redis:6379`, no `localhost`. Redis no tiene `ports`, porque para este ejemplo solo necesita ser accesible desde esa red. La web sí publica 8000 en la interfaz local del host.
+| Configuración            | Significado                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| `build`                  | Describe cómo obtener una imagen a partir de archivos locales.                       |
+| `context: .`             | Usa como contexto de construcción la carpeta que contiene `compose.yaml`.            |
+| `dockerfile: Dockerfile` | Selecciona el archivo de instrucciones, relativo al contexto.                        |
+| `ports`                  | Publica puertos del contenedor en el host.                                           |
+| `127.0.0.1:8080:80`      | Conecta el puerto local 8080 con el 80 del contenedor, accesible desde esta máquina. |
 
-### El usuario del bind mount es una decisión de desarrollo
+`context` determina qué archivos puede utilizar `COPY`; `dockerfile` determina qué instrucciones se leen. Aquí ambos apuntan a la misma carpeta. La forma breve `build: .` también serviría, porque `Dockerfile` es el nombre predeterminado de la receta.
 
-La opción `user` permite que el proceso use el UID/GID propietario del código montado en Linux. Antes de iniciar, en Bash o una terminal compatible:
+Un servicio también puede usar una imagen existente mediante `image: nginx:stable-alpine` en lugar del bloque `build`. Esa imagen serviría la bienvenida de Nginx, porque no contiene el HTML de la biblioteca. **`image` y `build` pueden coexistir**: al construir, `image` permite asignar un nombre al resultado. Esta configuración solo usa `build`, y Compose genera el nombre. La [referencia de construcción](https://docs.docker.com/reference/compose-file/build/) detalla estas opciones.
+
+## 3. Crear el servicio y comprobarlo
+
+Si sigue activo el contenedor manual `web-base` de la guía Base, detenerlo con `docker stop web-base` para liberar el puerto 8080. Compose creará su propio contenedor.
+
+Desde `web-docker`:
 
 ```bash
-export LOCAL_UID=$(id -u)
-export LOCAL_GID=$(id -g)
-```
-
-Esas variables pertenecen al entorno que ejecuta Compose. En Docker Desktop, los montajes tienen una intermediación adicional; adapta esta opción si tu plataforma gestiona permisos de otra manera. La imagen ya tiene un usuario no root para ejecutarse sin bind mount; esta configuración de desarrollo no es una recomendación para sobrescribir el usuario en producción.
-
-## 3. Arrancar y conectar la aplicación
-
-### Una variable de entorno no instala una integración
-
-```bash
-docker compose config --quiet
+docker compose config
 docker compose up -d --build
-docker compose exec web python manage.py migrate
 docker compose ps
-docker compose logs --tail=50 web
-docker compose exec redis redis-cli PING
 ```
 
-`config --quiet` valida el archivo sin imprimir valores de configuración. `up` crea o reconcilia los servicios; `--build` solicita construir antes. `exec web ...` ejecuta en la instancia web ya activa. `migrate` prepara su base; el último comando verifica el servidor Redis desde su propio contenedor.
+`config` valida el archivo y muestra la configuración interpretada; no arranca nada. `up` crea o actualiza los recursos descritos. `--build` solicita construir la imagen antes del arranque; `-d` deja el contenedor en segundo plano y devuelve el control a la terminal.
 
-Aunque `REDIS_URL` exista, Django no la utiliza automáticamente. Para conectar su caché, añade a los settings que realmente carga `web`:
+Compose construye la imagen, prepara la red del proyecto, crea el contenedor y aplica sus puertos. El proceso de Nginx arranca con la configuración de la imagen. `ps` muestra el estado y la publicación resultantes.
 
-```python
-import os
+Abrir `http://127.0.0.1:8080` debe mostrar **Biblioteca del barrio**. Si el puerto está ocupado por otro programa, elegir uno libre, por ejemplo `8082`, y cambiarlo tanto en `compose.yaml` como en la dirección del navegador.
 
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.environ["REDIS_URL"],
-    }
-}
+El nombre del proyecto se obtiene normalmente de la carpeta, aquí `web-docker`. Compose genera nombres para sus recursos, pero los comandos utilizan **el nombre del servicio**, `web`:
+
+```bash
+docker compose logs --tail 30 web
+docker compose exec web cat /usr/share/nginx/html/index.html
 ```
 
-El cliente `redis` ya aparece en el archivo de dependencias. Esta opción cambia el backend de caché; la aplicación debe usar `django.core.cache.cache` para leer o escribir entradas. No cachea todas las consultas ni cambia la base de datos o las sesiones. [Redis con Django](/redis-django.html) desarrolla esa integración y su invalidación.
+`logs` consulta la salida del servicio; `--tail 30` limita el resultado a sus últimas 30 líneas. `exec` ejecuta un proceso adicional dentro del contenedor activo. Aquí el programa `cat` muestra el archivo que Nginx puede servir, lo que permite comprobar su contenido real.
 
-### Healthcheck y depends_on
+Repetir `up` administra el mismo proyecto; no añade otro contenedor en cada llamada. Si cambian la imagen o la configuración, puede sustituir el existente para aplicar esos cambios, como describe la [referencia de up](https://docs.docker.com/reference/cli/docker/compose/up/).
 
-El healthcheck ejecuta `redis-cli PING` periódicamente y marca el servicio según su resultado. `condition: service_healthy` hace esperar a `web` durante la puesta en marcha hasta que Redis se considere saludable. No garantiza que Redis no falle después, ni reinicia automáticamente la web cuando Redis cambia de estado.
+## 4. Aplicar cambios: construir, recrear o reiniciar
 
-Por eso una aplicación debe tener timeouts y decidir cómo responde a una dependencia caída. El orden de arranque reduce una carrera inicial; el manejo de errores protege la operación continua.
+El HTML se ha copiado a la imagen. Editar `sitio/index.html` en el host no modifica esa copia. Para incorporar un horario nuevo:
 
-## 4. Qué comando corresponde a cada cambio
+```bash
+docker compose up -d --build
+```
 
-### Reiniciar no equivale a reconstruir
+La construcción vuelve a incorporar el archivo y Compose recrea el contenedor cuando cambia su imagen. **Recrear** significa retirar una instancia y crear otra con la imagen y configuración correspondientes. Los archivos guardados únicamente en la capa propia del contenedor anterior se pierden.
 
-| Cambio                                       | Acción habitual en esta configuración                           |
-| -------------------------------------------- | --------------------------------------------------------------- |
-| Editar una view o template                   | El bind mount lo expone; `runserver` recarga lo que corresponda |
-| Cambiar dependencias o Dockerfile            | `docker compose up -d --build`                                  |
-| Cambiar variables o configuración de Compose | `docker compose up -d` para recrear lo necesario                |
-| Reiniciar un proceso con igual configuración | `docker compose restart web`                                    |
-| Ejecutar un comando en la web existente      | `docker compose exec web ...`                                   |
-| Ejecutar un contenedor temporal del servicio | `docker compose run --rm web ...`                               |
+Las operaciones pueden ejecutarse por separado:
 
-`run` crea otra instancia para el comando; no es una sesión dentro de la existente y no publica automáticamente todos los puertos del servicio. `exec` necesita que el contenedor ya esté ejecutándose. Repetir `restart` no instala una dependencia que faltaba en la imagen.
+```bash
+docker compose build
+docker compose up -d
+```
 
-## 5. Variables, proyectos y datos
+`build` solo prepara las imágenes; no inicia ni actualiza los contenedores existentes. El posterior `up` aplica la imagen construida. La construcción puede reutilizar pasos cuyo contenido no ha cambiado.
 
-### Interpolación de Compose y entorno del proceso
+| Cambio o necesidad                                                    | Operación                       |
+| --------------------------------------------------------------------- | ------------------------------- |
+| Cambió el HTML copiado o el Dockerfile                                | `docker compose up -d --build`. |
+| Cambió un puerto o montaje en `compose.yaml`                          | `docker compose up -d`.         |
+| Se necesita reiniciar el mismo proceso con la configuración existente | `docker compose restart web`.   |
 
-Compose usa variables del shell y de su archivo `.env` para sustituir expresiones `${...}` en YAML. Eso no implica que todas ellas aparezcan dentro del contenedor. `environment` y `env_file` son mecanismos para definir su entorno. La URL de Redis está en `environment`; `LOCAL_UID` se usa para resolver `user`.
+`restart` detiene y arranca el mismo contenedor. No reconstruye imágenes ni aplica cambios de `compose.yaml`. Tampoco `up` reconstruye automáticamente una imagen existente por detectar que se ha editado el HTML: para ese caso se indica `--build`.
 
-El nombre del proyecto agrupa redes, contenedores y volúmenes. Puedes fijarlo con `docker compose -p nombre ...`, pero debes usar el mismo nombre en operaciones posteriores para actuar sobre el mismo conjunto. Cambiarlo puede crear otro volumen con otros datos y hacerte creer que se perdió la base anterior.
+## 5. Editar el HTML mediante un montaje
 
-`docker compose down` elimina los contenedores y la red del proyecto, conservando los volúmenes con nombre por defecto. `docker compose down -v` también solicita eliminar los volúmenes gestionados correspondientes: en este ejemplo borraría la persistencia de Redis. El bind mount del código sigue siendo una carpeta del host y tiene otro ciclo de vida.
+Durante la edición puede resultar útil que Nginx lea directamente los archivos del host. Para ello, sustituir el contenido de `compose.yaml` por esta variante completa:
 
-Cuando algo no encaje, sigue el recorrido de [diagnóstico](/docker-diagnostico.html): configuración resuelta, estado del proceso, logs, red y almacenamiento.
+```yaml
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - "./sitio:/usr/share/nginx/html:ro"
+```
+
+Aunque la clave se llame `volumes`, esta entrada define un **bind mount**, un montaje de una carpeta del host:
+
+| Parte                   | Función                                                                  |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `./sitio`               | Carpeta del host, relativa a `compose.yaml`; debe contener `index.html`. |
+| `/usr/share/nginx/html` | Ruta donde esa carpeta aparece dentro del contenedor.                    |
+| `ro`                    | Solo lectura: Nginx puede leer esos archivos sin modificarlos.           |
+
+Aplicar la configuración:
+
+```bash
+docker compose up -d
+```
+
+Ahora, al cambiar `sitio/index.html` y recargar el navegador, aparece el contenido actualizado sin reconstruir. **El montaje oculta la copia de esa carpeta incluida en la imagen** mientras está activo; no la borra ni la actualiza.
+
+El Dockerfile sigue copiando el HTML cuando se construye, pero el contenedor configurado con este montaje sirve la carpeta del host. Reconstruir la imagen no cambia esa prioridad. Al retirar `volumes` y ejecutar de nuevo `up -d`, vuelve a servirse la copia de la imagen. Si debe incluir las últimas ediciones, utilizar `up -d --build`.
+
+## 6. Red, parada y retirada del proyecto
+
+### Qué dirección se utiliza
+
+Compose conecta el servicio a una red predeterminada. Dentro de esa red, Docker puede resolver `web` mediante su DNS interno, el sistema que convierte nombres en direcciones de red.
+
+| Desde dónde se accede                    | Dirección de esta web    |
+| ---------------------------------------- | ------------------------ |
+| Navegador del host                       | `http://127.0.0.1:8080`. |
+| Otro contenedor conectado a la misma red | `http://web:80`.         |
+| El propio contenedor `web`               | `http://localhost:80`.   |
+
+Dentro de un contenedor, `localhost` identifica ese mismo contenedor. Otro servicio usaría `web` y el puerto interno 80; el 8080 se ha publicado para acceder desde el host. La web actual solo necesita un servicio. La [documentación de redes de Compose](https://docs.docker.com/compose/how-tos/networking/) desarrolla esta separación.
+
+### Conservar o retirar los contenedores
+
+```bash
+docker compose stop
+docker compose start
+```
+
+`stop` detiene los servicios conservando sus contenedores. `start` arranca esas mismas instancias; no aplica una configuración nueva.
+
+Para retirar el proyecto en ejecución:
+
+```bash
+docker compose down
+```
+
+`down` detiene y elimina los contenedores y la red predeterminada creados por Compose. Conserva las imágenes construidas y los archivos del host, incluidos `compose.yaml` y `sitio/index.html`. El siguiente `up -d` puede crear de nuevo el servicio.
+
+Si la página no aparece, `docker compose ps -a` incluye también los contenedores detenidos. Sus registros permiten distinguir un fallo de arranque de un problema de acceso. Si aparece una versión antigua, comprobar primero si Nginx está leyendo el HTML incorporado a la imagen o la carpeta montada del host.

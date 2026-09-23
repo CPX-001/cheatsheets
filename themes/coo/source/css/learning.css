@@ -91,7 +91,19 @@ html.has-visible-navbar {
   --learn-scrollbar: #64748b;
 }
 
-/* Redis keeps its own red identity without changing the other guides. */
+/* Guide accents match their catalogue cards: Django green, Docker blue, Redis red. */
+
+.learning-django {
+  --learn-accent: #047857;
+  --learn-tint: #d1fae5;
+  --learn-focus: #059669;
+}
+
+.dark .learning-django {
+  --learn-accent: #6ee7b7;
+  --learn-tint: #123a30;
+  --learn-focus: #34d399;
+}
 
 .learning-redis {
   --learn-accent: #b91c1c;
@@ -357,7 +369,10 @@ html.has-visible-navbar {
 
 .learning-content .h2-wrap {
   margin: 0 0 48px;
-  scroll-margin-top: 24px;
+}
+
+.learning-content [id] {
+  scroll-margin-top: calc(var(--site-navbar-offset, 0px) + 24px);
 }
 
 .learning-content .h2-wrap > h2 {
