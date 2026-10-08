@@ -1,108 +1,254 @@
 ---
 title: 'LLM Engineering · Week 2'
 date: '2026-09-23'
-updated: '2026-09-23'
+updated: '2026-10-09'
 layout: 'learning'
 language: 'es'
 disableNunjucks: true
 icon: 'ai'
 series_title: 'LLM Engineering'
 categories: ['AI']
-intro: 'Convertir llamadas a modelos en una aplicación: proveedores, interfaces, conversación, herramientas, datos y respuestas con imagen y voz.'
-heading: 'Week 2 · Aplicaciones'
+intro: 'Clientes de modelos, Gradio, generadores, historial, herramientas, SQLite, imágenes y voz.'
+heading: 'LLM Engineering · Week 2'
 learning_classes: 'learning-page learning-llm learning-page-cards'
 background: 'bg-gradient-to-r from-violet-700 to-purple-900 !text-white'
 ---
 
-## 1. De generar texto a atender una petición
+## Clientes y modelos
 
-En la [Week 1](/llm-week-1.html), Python reunía información y el modelo la transformaba. Esta semana añade una interfaz, conserva conversaciones y permite consultar datos mediante herramientas. Todo converge en un asistente de vuelos:
+El cliente establece la conexión con el proveedor; `model` elige qué modelo atenderá la petición. Los ejemplos utilizan las claves cargadas desde el `.env` del proyecto.
 
-```text
-Usuario pregunta → interfaz entrega mensaje e historial → modelo interpreta
-    → Python consulta el precio si hace falta → modelo redacta
-    → interfaz presenta texto y, opcionalmente, imagen y voz
-```
-
-El modelo interpreta lenguaje y propone qué hacer. **La aplicación controla la información disponible, ejecuta las operaciones y decide cómo presentar el resultado.** Gradio, el historial y las herramientas resuelven problemas distintos dentro de ese recorrido.
-
-## 2. Varias formas de llegar al mismo modelo
-
-La colección de llamadas a GPT, Claude, Gemini, DeepSeek y otros modelos no exige memorizar una receta por marca. Demuestra que se puede separar **la lógica de la aplicación de la conexión con el proveedor**.
-
-| Vía                         | Qué cambia y para qué sirve                                                                                              |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| SDK nativo                  | Usa los objetos y métodos del proveedor. Permite trabajar con sus funciones específicas.                                 |
-| SDK OpenAI y API compatible | Mantiene `messages` y `chat.completions.create`; cambia dirección, clave y modelo. Facilita reutilizar el código básico. |
-| OpenRouter                  | Es un servicio intermediario: recibe la petición y la dirige a modelos de distintos proveedores.                         |
-| LiteLLM                     | Ofrece una interfaz común que adapta llamadas a proveedores; en el notebook se usa como librería.                        |
-| LangChain                   | Añade abstracciones para construir aplicaciones y flujos. `invoke()` es su forma de solicitar una respuesta.             |
-
-Un router no equivale a un SDK: el primero recibe peticiones en su servicio; el segundo es código que se ejecuta en el proceso de la aplicación. Tampoco hace falta introducir un framework para encadenar dos funciones Python.
-
-### SDK nativo frente a compatibilidad
-
-Con el SDK nativo de Google, el núcleo de una llamada de texto es `cliente.models.generate_content(model=..., contents=pregunta)` y se lee `respuesta.text`. Con el de Anthropic es `cliente.messages.create(...)` y el texto puede venir en bloques de `respuesta.content`. Sus parámetros y respuestas no tienen por qué coincidir.
-
-Con una API compatible, la forma común se conserva. Este ejemplo configura Claude; requiere `ANTHROPIC_API_KEY` cargada en el entorno:
+### OpenAI
 
 ```python
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
-claude = OpenAI(
-    base_url="https://api.anthropic.com/v1/",
-    api_key=os.environ["ANTHROPIC_API_KEY"],
+load_dotenv(override=True)
+cliente = OpenAI()
+modelo = "gpt-4.1-mini"
+mensajes = [{"role": "user", "content": "Explica qué es una API en una frase."}]
+
+respuesta = cliente.chat.completions.create(
+    model=modelo,
+    messages=mensajes,
+)
+print(respuesta.choices[0].message.content)
+```
+
+`cliente` y `modelo` se reutilizan en los ejemplos de OpenAI que siguen.
+
+### API compatible
+
+El SDK de OpenAI también puede enviar peticiones a un servidor que acepte su formato. Se cambian `base_url`, la clave y el identificador del modelo:
+
+```python
+gemini = OpenAI(
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+    api_key=os.environ["GOOGLE_API_KEY"],
+)
+
+respuesta_gemini = gemini.chat.completions.create(
+    model="gemini-3.1-flash-lite",
+    messages=mensajes,
+)
+print(respuesta_gemini.choices[0].message.content)
+```
+
+Esta petición se envía a Google. Cambiar solo `model` sin cambiar el cliente no cambia de proveedor. [Compatibilidad de Gemini](https://ai.google.dev/gemini-api/docs/openai).
+
+### SDK nativo
+
+Con la librería de Google cambian la llamada y el acceso a la respuesta:
+
+```python
+from google import genai
+
+google = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
+respuesta_google = google.models.generate_content(
+    model="gemini-3.1-flash-lite",
+    contents="Explica qué es una API en una frase.",
+)
+print(respuesta_google.text)
+```
+
+Con Anthropic, `system` se pasa separado de `messages` y el texto llega en bloques:
+
+```python
+from anthropic import Anthropic
+
+claude = Anthropic()
+respuesta_claude = claude.messages.create(
+    model="claude-sonnet-4-5-20250929",
+    max_tokens=200,
+    system="Responde en español.",
+    messages=[{"role": "user", "content": "Explica qué es una API."}],
+)
+print(respuesta_claude.content[0].text)
+```
+
+`Anthropic()` lee `ANTHROPIC_API_KEY`. `max_tokens` limita la salida generada; no indica cuántos tokens se han consumido.
+
+## OpenRouter, LiteLLM y LangChain
+
+### OpenRouter
+
+OpenRouter es un servicio que recibe la petición y la dirige a un modelo de otro proveedor. Utiliza su propia clave y nombres de modelo con un prefijo:
+
+```python
+router = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.environ["OPENROUTER_API_KEY"],
+)
+
+respuesta_router = router.chat.completions.create(
+    model="openai/gpt-4.1-mini",
+    messages=mensajes,
+)
+print(respuesta_router.choices[0].message.content)
+```
+
+### LiteLLM
+
+LiteLLM adapta las llamadas a distintos proveedores mediante una función común. El prefijo de `model` identifica al proveedor:
+
+```python
+from litellm import completion
+
+respuesta_litellm = completion(
+    model="openai/gpt-4.1-mini",
+    messages=mensajes,
+)
+print(respuesta_litellm.choices[0].message.content)
+```
+
+### LangChain
+
+`ChatOpenAI` encapsula un modelo de chat. `invoke()` realiza la llamada y devuelve un mensaje cuyo texto está en `content`:
+
+```python
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(model="gpt-4.1-mini")
+respuesta_langchain = llm.invoke(mensajes)
+print(respuesta_langchain.content)
+```
+
+LiteLLM y LangChain se ejecutan como librerías de Python. OpenRouter recibe las peticiones en su servicio. Utilizar otra librería no cambia por sí mismo la capacidad del modelo.
+
+## Consumo y caché
+
+### Tokens utilizados
+
+Con `respuesta` de la llamada inicial a OpenAI:
+
+```python
+print(respuesta.usage.prompt_tokens)
+print(respuesta.usage.completion_tokens)
+print(respuesta.usage.total_tokens)
+
+detalle = respuesta.usage.prompt_tokens_details
+tokens_cacheados = detalle.cached_tokens if detalle else 0
+print(tokens_cacheados)
+```
+
+`prompt_tokens` cuenta la entrada y `completion_tokens` la salida. `cached_tokens` indica la parte de la entrada que se ha reutilizado desde caché; está incluida en `prompt_tokens`.
+
+El campo `_hidden_params["response_cost"]` que aparece en el notebook pertenece a LiteLLM, no al SDK de OpenAI. El consumo en tokens y el importe facturado son datos distintos.
+
+### Prefijo estable
+
+Desde `week2/`, donde está `hamlet.txt`:
+
+```python
+from pathlib import Path
+
+obra = Path("hamlet.txt").read_text(encoding="utf-8")
+base = [
+    {"role": "system", "content": "Responde usando únicamente el texto proporcionado."},
+    {"role": "user", "content": obra},
+]
+
+pregunta_a = base + [{"role": "user", "content": "¿Quién es Laertes?"}]
+pregunta_b = base + [{"role": "user", "content": "¿Qué relación tiene con Ofelia?"}]
+```
+
+Ambas peticiones empiezan con el mismo contenido y cambian solo la pregunta final. La lista completa se envía en cada llamada:
+
+```python
+respuesta_b = cliente.chat.completions.create(
+    model=modelo,
+    messages=pregunta_b,
 )
 ```
 
-Después se llama a `claude.chat.completions.create(...)` con un modelo de Claude. **La elección depende de lo que necesite la aplicación:** una interfaz compartida simplifica cambiar de proveedor; el SDK nativo resulta útil cuando se necesitan funciones que la compatibilidad no representa. La [documentación de Claude](https://platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk) explica las diferencias y limitaciones de esa capa.
+La caché reutiliza procesamiento del prefijo, no una respuesta anterior. Repetir una petición no garantiza un acierto: también influyen la longitud, el modelo y la retención. [Prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching).
 
-En todos los casos conviene mantener explícitos el cliente y el modelo. Cambiar solo el identificador no transforma un cliente conectado a OpenAI en un cliente conectado a Google. Y usar el mismo formato no garantiza que todos admitan las mismas herramientas o parámetros.
+### Esfuerzo de razonamiento
 
-## 3. Qué enseñan las comparaciones entre modelos
+```python
+respuesta_razonada = cliente.chat.completions.create(
+    model="gpt-5-nano",
+    reasoning_effort="low",
+    messages=[{"role": "user", "content": "Explica paso a paso cómo resolver 3x + 7 = 22."}],
+)
+```
 
-Los chistes, acertijos, dilemas y dibujos SVG sirven para observar diferencias de estilo, interpretación, seguimiento de instrucciones y tiempo de respuesta. **Una respuesta vistosa o acertar un acertijo no establece que un modelo sea mejor para toda la aplicación.** Para elegir, hay que probar tareas representativas con criterios iguales: corrección, formato, latencia y coste.
+`reasoning_effort` regula el esfuerzo durante esa petición; no entrena el modelo. Sus valores admitidos dependen del modelo.
 
-Además, un enunciado ambiguo puede medir supuestos distintos. En el problema de las monedas, conocer que «al menos una es cara» no es lo mismo que observar una moneda concreta y comprobar que salió cara. Antes de juzgar la respuesta, hay que fijar qué información recibió el modelo.
+## Gradio
 
-El contraste entre entrenamiento e inferencia tiene una consecuencia sencilla: un modelo aprende durante su entrenamiento; `reasoning_effort` regula el esfuerzo de razonamiento durante una petición en los modelos que lo admiten. Aumentarlo puede mejorar ciertas tareas a costa de tiempo y recursos, pero no reentrena el modelo ni garantiza acertar. Los valores admitidos dependen del modelo.
-
-### Contexto y caché son cosas diferentes
-
-El ejemplo de _Hamlet_ primero pregunta sin proporcionar el libro y después incorpora su texto. Añadir la fuente permite responder apoyándose en ella; no obliga al modelo a haberla memorizado correctamente. Repetir esa entrada extensa introduce **prompt caching**: el proveedor puede reutilizar procesamiento de una parte repetida de la entrada.
-
-La caché de prompts no guarda una respuesta fija ni sustituye el historial. Se sigue enviando el contexto y se genera una respuesta nueva. En OpenAI, los aciertos de caché requieren prefijos coincidentes: interesa colocar contenido estable al principio y variable al final. Las condiciones y los descuentos dependen del proveedor y del modelo; el notebook demuestra el mecanismo, no una tarifa universal. Véase [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching).
-
-### Dos chatbots conversando
-
-El diálogo entre un bot discutidor y otro conciliador demuestra cómo construir el historial **desde la perspectiva de cada participante**. Para A, sus respuestas son `assistant` y las de B son `user`; para B ocurre al revés. Python alterna las llamadas y conserva las intervenciones. No existe un canal secreto entre los modelos: cada uno recibe el contexto que el programa le envía.
-
-## 4. Gradio conecta una interfaz con funciones Python
-
-El ejemplo que convierte un texto a mayúsculas enseña todo el mecanismo inicial: **un componente entrega un valor a una función y otro muestra su resultado**. Sustituir esa función por una llamada al LLM transforma la misma interfaz en una aplicación de IA.
-
-Gradio crea la interfaz web y arranca un servidor Python que atiende sus eventos. El navegador muestra controles; la función Python llama al proveedor desde el servidor. La clave de API pertenece a ese proceso, no al cuadro de texto del usuario.
-
-Hay tres niveles que aparecen en la semana: `gr.Interface` conecta entradas y salidas de una función; `gr.ChatInterface` prepara una conversación; `gr.Blocks` permite componer componentes y enlazar sus eventos. Los ejemplos del curso utilizan **Gradio 5**, acotado a `<6` en sus dependencias; las firmas siguientes siguen esa versión.
-
-Este patrón retoma el cliente de la semana anterior y muestra una respuesta progresiva. Se ejecuta en una celda del entorno del curso con `OPENAI_API_KEY` disponible:
+`gr.Interface` conecta una función Python con componentes de entrada y salida. Los ejemplos usan **Gradio 5**, la versión declarada por el curso.
 
 ```python
 import gradio as gr
-from dotenv import load_dotenv
-from openai import OpenAI
 
-load_dotenv()
-cliente = OpenAI()
-modelo = "gpt-4.1-mini"
+def mayusculas(texto):
+    return texto.upper()
 
-def responder(pregunta):
-    stream = cliente.chat.completions.create(
-        model=modelo,
-        messages=[{"role": "user", "content": pregunta}],
+vista = gr.Interface(
+    fn=mayusculas,
+    inputs=gr.Textbox(label="Texto"),
+    outputs=gr.Textbox(label="Resultado"),
+    flagging_mode="never",
+)
+vista.launch()
+```
+
+Al enviar `hola`, la salida muestra `HOLA`. `fn=mayusculas` entrega la función a Gradio; `fn=mayusculas()` intentaría ejecutarla al construir la interfaz.
+
+Con varias entradas, el orden de `inputs` coincide con el de los argumentos. Con varias salidas, el orden de `outputs` coincide con los valores devueltos.
+
+`launch(inbrowser=True)` abre el navegador. `launch(share=True)` crea un enlace público temporal mientras el proceso está activo. `vista.close()` detiene esa interfaz antes de lanzar otra.
+
+## Generadores y streaming
+
+### yield
+
+`return` termina una función y devuelve un resultado. `yield` entrega un valor y permite continuar la ejecución cuando se pide el siguiente:
+
+```python
+def fragmentos():
+    yield "Hola"
+    yield "Hola, Ana"
+
+print(list(fragmentos()))
+```
+
+```text
+['Hola', 'Hola, Ana']
+```
+
+### Respuesta progresiva
+
+Gradio actualiza el componente con cada valor del generador. Por eso se entrega el texto acumulado, no solo el último fragmento.
+
+```python
+def generar_stream(mensajes, cliente_actual=cliente, modelo_actual=modelo):
+    stream = cliente_actual.chat.completions.create(
+        model=modelo_actual,
+        messages=mensajes,
         stream=True,
     )
     texto = ""
@@ -111,106 +257,363 @@ def responder(pregunta):
             texto += fragmento.choices[0].delta.content or ""
             yield texto
 
-gr.Interface(fn=responder, inputs="text", outputs=gr.Markdown()).launch()
-```
-
-`fn` recibe la función, sin ejecutarla en ese momento. `return` entregaría un resultado final; `yield` convierte la función en un generador que entrega estados sucesivos. Se envía el **texto acumulado**, porque Gradio actualiza la salida con cada valor recibido. `yield from otro_generador` permite reenviar ese flujo, como hace el selector entre proveedores.
-
-Cambiar colores, abrir otra pestaña o añadir controles no altera esa relación. `inbrowser=True` abre el navegador; `share=True` crea un acceso público temporal mientras el proceso está activo; `auth` añade autenticación básica. El generador de folletos reutiliza exactamente este patrón, añadiendo nombre, URL y proveedor como entradas.
-
-## 5. Un chat necesita reconstruir la conversación
-
-En Gradio 5, `ChatInterface` llama a una función `chat(message, history)`: `message` es el mensaje nuevo y `history` contiene los turnos anteriores. La función prepara lo que verá el modelo:
-
-```python
-instrucciones = "Eres un asistente de vuelos. No inventes precios."
-
-def chat(message, history):
-    historial = [{"role": h["role"], "content": h["content"]} for h in history]
+def responder(pregunta):
     mensajes = [
-        {"role": "system", "content": instrucciones},
-        *historial,
-        {"role": "user", "content": message},
+        {"role": "system", "content": "Responde en español y en Markdown."},
+        {"role": "user", "content": pregunta},
     ]
-    respuesta = cliente.chat.completions.create(model=modelo, messages=mensajes)
-    return respuesta.choices[0].message.content
+    yield from generar_stream(mensajes)
 
-gr.ChatInterface(fn=chat, type="messages").launch()
+vista = gr.Interface(fn=responder, inputs="text", outputs=gr.Markdown())
+vista.launch()
 ```
 
-El ejemplo reutiliza `cliente`, `modelo` y `gr` de la sección anterior. Reconstruye los mensajes con los campos que necesita la API y añade la pregunta actual **una sola vez**. Gradio incorpora el resultado a la conversación visible. Esa comodidad no implica guardar una memoria duradera entre sesiones.
+`yield from` transmite los valores de otro generador. Hacer `return generar_stream(mensajes)` devolvería el objeto generador, en vez de entregar sus textos a Gradio.
 
-La tienda de ropa del notebook muestra cómo ajustar el comportamiento con instrucciones y ejemplos: recomendar productos en oferta, tratar una excepción o incorporar información relevante según la pregunta. El caso de detectar la palabra `belt` con Python es una demostración mínima de selección de contexto; depender de una palabra exacta falla ante sinónimos, traducciones o referencias a turnos anteriores.
+## Selector de modelo
 
-La consecuencia para el asistente de vuelos es clara: escribir «no inventes precios» define el comportamiento deseado, pero **no proporciona los precios**. Hace falta conectarlo con una fuente que pueda consultarlos.
-
-## 6. Una herramienta permite pedir una operación
-
-Una herramienta reúne tres piezas: una función Python, una descripción que se envía al modelo y código que atiende sus solicitudes. Por ejemplo, `get_ticket_price(destination_city)` puede buscar una ciudad en un diccionario y devolver su precio, o indicar que no está disponible.
-
-La descripción enviada en `tools` identifica la función y sus argumentos. Esta es la estructura de Chat Completions para esa consulta:
+El selector entrega una etiqueta a la función. La aplicación la relaciona con un cliente y un modelo. Este ejemplo requiere el cliente `gemini` del apartado de API compatible.
 
 ```python
-tools = [{
+conexiones = {
+    "GPT": (cliente, modelo),
+    "Gemini": (gemini, "gemini-3.1-flash-lite"),
+}
+
+def responder_modelo(pregunta, proveedor):
+    cliente_actual, modelo_actual = conexiones[proveedor]
+    mensajes = [{"role": "user", "content": pregunta}]
+    yield from generar_stream(mensajes, cliente_actual, modelo_actual)
+
+vista = gr.Interface(
+    fn=responder_modelo,
+    inputs=[
+        gr.Textbox(label="Pregunta"),
+        gr.Dropdown(["GPT", "Gemini"], value="GPT", label="Modelo"),
+    ],
+    outputs=gr.Markdown(),
+)
+vista.launch()
+```
+
+La asignación `cliente_actual, modelo_actual = ...` desempaqueta la pareja guardada en el diccionario. `pregunta` recibe el texto y `proveedor` recibe la opción del desplegable.
+
+## ChatInterface e historial
+
+`gr.ChatInterface` llama a una función con dos argumentos: el mensaje nuevo y el historial anterior. En el chat de texto de Gradio 5, `type="messages"` utiliza diccionarios con `role` y `content`.
+
+```python
+sistema = "Responde en español, de forma breve y sin inventar datos."
+
+def preparar_mensajes(mensaje, historial):
+    anteriores = [
+        {"role": entrada["role"], "content": entrada["content"]}
+        for entrada in historial
+    ]
+    return [
+        {"role": "system", "content": sistema},
+        *anteriores,
+        {"role": "user", "content": mensaje},
+    ]
+
+def chat(mensaje, historial):
+    mensajes = preparar_mensajes(mensaje, historial)
+    yield from generar_stream(mensajes)
+
+vista_chat = gr.ChatInterface(fn=chat, type="messages")
+vista_chat.launch()
+```
+
+`*anteriores` inserta cada elemento en la lista nueva. El mensaje actual se añade una sola vez; Gradio incorpora después la respuesta visible al historial. No hace falta añadirla manualmente dentro de `chat()`.
+
+### Instrucciones según la petición
+
+```python
+def instrucciones(mensaje):
+    actual = "Atiende a los clientes de la tienda."
+    if "cinturón" in mensaje.lower():
+        actual += " La tienda no vende cinturones."
+    return actual
+```
+
+Al construir los mensajes, `{"role": "system", "content": instrucciones(mensaje)}` aplica esa regla solo a la petición actual. Una variable local evita modificar permanentemente las instrucciones de las siguientes llamadas.
+
+### Conversación entre dos modelos
+
+Cada modelo debe recibir sus propias respuestas como `assistant` y las del otro como `user`:
+
+```python
+respuestas_a = ["Hola"]
+respuestas_b = ["¿Qué tal?"]
+historial_a = []
+
+for texto_a, texto_b in zip(respuestas_a, respuestas_b):
+    historial_a.append({"role": "assistant", "content": texto_a})
+    historial_a.append({"role": "user", "content": texto_b})
+```
+
+`zip()` recorre ambas listas por parejas y se detiene al terminar la más corta. Para el historial de B se invierten los roles; una intervención pendiente se añade después del bucle.
+
+El formato de `history` cambia en Gradio 6; estos ejemplos mantienen el de los notebooks. [Formato del historial](https://www.gradio.app/guides/gradio-6-migration-guide).
+
+## Herramientas
+
+El modelo solicita una operación mediante `tool_calls`. Python ejecuta la función y devuelve el resultado al modelo para que redacte la respuesta.
+
+### Función Python
+
+```python
+precios = {"london": 799, "paris": 899, "tokyo": 1420}
+
+def precio_billete(ciudad):
+    return {
+        "ciudad": ciudad,
+        "precio": precios.get(ciudad.strip().lower()),
+        "moneda": "USD",
+    }
+
+print(precio_billete("Paris"))
+```
+
+```text
+{'ciudad': 'Paris', 'precio': 899, 'moneda': 'USD'}
+```
+
+### Descripción de la herramienta
+
+```python
+herramientas = [{
     "type": "function",
     "function": {
-        "name": "get_ticket_price",
-        "description": "Consulta el precio de ida y vuelta a una ciudad.",
+        "name": "precio_billete",
+        "description": "Consulta el precio de un billete. Usa el nombre de la ciudad en inglés.",
         "parameters": {
             "type": "object",
-            "properties": {"destination_city": {"type": "string"}},
-            "required": ["destination_city"],
+            "properties": {
+                "ciudad": {"type": "string"},
+            },
+            "required": ["ciudad"],
             "additionalProperties": False,
         },
+        "strict": True,
     },
 }]
 ```
 
-`description` ayuda al modelo a decidir cuándo utilizarla; `parameters` describe los argumentos, no el resultado. Registrar este diccionario **no envía el código de la función ni la ejecuta**. Se pasa `tools=tools` junto con `model` y `messages` en la petición.
+`name` identifica la operación; `description` indica cuándo usarla; `parameters` describe sus argumentos. Este diccionario no contiene la implementación: la función sigue ejecutándose en Python.
 
-Ante «¿cuánto cuesta ir a París?», el modelo puede devolver una solicitud en `message.tool_calls`, con el nombre de la función, argumentos JSON como `{"destination_city": "Paris"}` y un identificador. Entonces el programa completa el recorrido:
+### Ejecutar solicitudes y devolver resultados
 
-1. Añade al historial el mensaje del asistente que contiene la solicitud.
-2. Convierte los argumentos con `json.loads()`, comprueba el nombre y los valores, y ejecuta la función permitida.
-3. Añade un mensaje `{"role": "tool", "tool_call_id": llamada.id, "content": resultado}`. `resultado` debe ser texto; si es un diccionario, se serializa con `json.dumps()`.
-4. Vuelve a llamar al modelo con ese historial para que pueda contestar usando el precio obtenido.
+```python
+import json
 
-El `tool_call_id` enlaza el resultado con la solicitud concreta. Omitir la solicitud original o responder con otro identificador rompe la secuencia. La [guía de function calling](https://developers.openai.com/api/docs/guides/function-calling) describe este intercambio.
+def consultar_vuelos(mensajes):
+    ciudades = []
 
-### Varias herramientas y varias rondas
+    while True:
+        respuesta = cliente.chat.completions.create(
+            model=modelo,
+            messages=mensajes,
+            tools=herramientas,
+        )
+        mensaje = respuesta.choices[0].message
 
-Consultar París y Tokio puede producir dos solicitudes en una respuesta: hay que recorrer **todas**, ejecutar cada una y añadir sus resultados. También puede hacer falta otra ronda tras ver esos datos. Por eso el notebook evoluciona desde un `if` a un bucle que continúa mientras haya `tool_calls`, volviendo a ofrecer `tools` en cada petición.
+        if not mensaje.tool_calls:
+            return mensaje.content or "", ciudades
 
-En una aplicación conviene limitar las rondas y tratar errores de argumentos o de consulta. El modelo propone la operación; Python decide qué nombres acepta y qué funciones ejecuta. No se ejecuta texto arbitrario generado por el modelo.
+        mensajes.append(mensaje.model_dump(exclude_none=True))
 
-## 7. Cambiar la fuente de datos sin rehacer el asistente
+        for llamada in mensaje.tool_calls:
+            if llamada.function.name != "precio_billete":
+                raise ValueError("Herramienta desconocida")
 
-El diccionario de precios permite entender la herramienta, pero sus datos viven en el proceso. El paso a SQLite introduce un archivo `prices.db` con una tabla persistente. **El contrato del asistente se mantiene:** pide un precio por ciudad y recibe un resultado; lo que cambia es el interior de la función Python.
+            argumentos = json.loads(llamada.function.arguments)
+            ciudad = argumentos["ciudad"]
+            resultado = precio_billete(ciudad)
+            ciudades.append(ciudad)
 
-La lectura usa una consulta como `SELECT price FROM prices WHERE city = ?`, pasando `(ciudad.lower(),)` como parámetros. `?` separa los valores del SQL; `fetchone()` devuelve una fila o `None`. La función transforma ese resultado en información que el modelo pueda utilizar, incluyendo la ausencia de datos.
+            mensajes.append({
+                "role": "tool",
+                "tool_call_id": llamada.id,
+                "content": json.dumps(resultado),
+            })
+```
 
-La función de escritura del notebook usa `INSERT ... ON CONFLICT ... DO UPDATE` para crear o actualizar un precio. Definir esa función no la convierte automáticamente en una herramienta accesible al modelo: habría que describirla y conectarla con el código que atiende solicitudes. Consultar y modificar son permisos distintos.
+`function.arguments` es texto JSON y se convierte con `json.loads()`. `model_dump()` convierte el mensaje del SDK en un diccionario y conserva sus `tool_calls`.
 
-El día 5 reutiliza `prices.db`, creado y poblado el día anterior. Si se ejecuta de forma aislada, esa preparación debe existir en la carpeta de trabajo. El mensaje «no existe la tabla» apunta a la base de datos, no al LLM.
+Primero se añade el mensaje del asistente que solicita las herramientas; después, un mensaje `tool` por solicitud. `tool_call_id` enlaza cada resultado con su llamada. El `for` atiende varias herramientas en un turno; el `while` permite otra ronda de consultas. [Function calling](https://developers.openai.com/api/docs/guides/function-calling).
 
-## 8. Imagen y voz son salidas adicionales
+### Chat con herramientas
 
-El proyecto final combina una respuesta de texto, una imagen del destino y audio. Son llamadas con tareas distintas: el modelo de conversación contesta, el de imágenes recibe una descripción visual y el de texto a voz recibe la respuesta ya redactada. Añadir voz no significa que el sistema entienda audio de entrada.
+```python
+sistema = (
+    "Eres un asistente de vuelos. Consulta los precios con la herramienta. "
+    "Si el precio es null, indica que no hay datos. Responde en español."
+)
 
-En `artist(city)`, la API de imágenes devuelve datos codificados en base64. `base64.b64decode()` recupera los bytes, `BytesIO` los presenta como un archivo en memoria y `Image.open()` crea el objeto de imagen que Gradio puede mostrar. Son conversiones de representación; no generan otra imagen.
+def chat_vuelos(mensaje, historial):
+    mensajes = preparar_mensajes(mensaje, historial)
+    texto, ciudades = consultar_vuelos(mensajes)
+    return texto
 
-En `talker(message)`, `audio.speech.create()` sintetiza el texto y se devuelven los bytes de audio. La ciudad se obtiene de las consultas realizadas; el texto hablado sale de la respuesta final. Así las salidas comparten el mismo contexto. Cada llamada añade su propio tiempo y consumo; si falla una salida opcional, interesa conservar la respuesta de texto ya obtenida.
+vista_vuelos = gr.ChatInterface(fn=chat_vuelos, type="messages")
+vista_vuelos.launch()
+```
 
-### Blocks coordina el recorrido en pantalla
+`consultar_vuelos()` devuelve dos valores: la respuesta y las ciudades consultadas. El chat utiliza el texto; las ciudades permiten generar después una imagen del destino.
 
-La interfaz final usa `gr.Blocks` porque necesita actualizar chat, imagen y audio. El evento de enviar texto se conecta a una función que limpia la entrada y añade el mensaje del usuario; `.then(...)` ejecuta después la función que genera la respuesta.
+## SQLite
 
-Aquí cambia el contrato respecto a `ChatInterface`: **la función final recibe un historial que ya incluye el mensaje nuevo**. Añadirlo otra vez lo duplicaría. Su retorno contiene tres valores en el mismo orden que `outputs`: historial actualizado, audio e imagen. Esa correspondencia entre entradas, retorno y componentes es lo que hay que entender del montaje visual.
+La herramienta puede consultar una base de datos en lugar de un diccionario. `prices.db` se crea en la carpeta desde la que se ejecuta Python.
 
-## 9. Qué se puede reconstruir con estas piezas
+### Crear y cargar datos
 
-El asistente ya se entiende como un recorrido completo: la interfaz recoge una petición, Python reconstruye el contexto, el modelo responde o solicita datos, Python ejecuta las consultas y la interfaz muestra el resultado. Cambiar vuelos por soporte técnico modifica las instrucciones, las fuentes y las herramientas; el mecanismo se conserva.
+```python
+import sqlite3
 
-Las pruebas visuales de la semana sirven para comprobar cada conexión por separado. Una interfaz que imprime el historial ayuda a entender qué recibe la función. Una consulta directa al precio comprueba la base de datos. Una llamada sin interfaz comprueba el acceso al modelo. **Aislar la pieza que falla evita depurar todo el asistente a la vez.**
+DB = "prices.db"
+conexion = sqlite3.connect(DB)
 
-Esta síntesis parte de `week2/day1.ipynb` a `day5.ipynb`, del ejemplo comparativo `extra.ipynb` y del ejercicio final. El punto de partida conceptual está en [Week 1 · Fundamentos](/llm-week-1.html).
+with conexion:
+    conexion.execute(
+        "CREATE TABLE IF NOT EXISTS prices "
+        "(city TEXT PRIMARY KEY, price REAL)"
+    )
+    conexion.executemany(
+        "INSERT INTO prices (city, price) VALUES (?, ?) "
+        "ON CONFLICT(city) DO UPDATE SET price = excluded.price",
+        [("london", 799), ("paris", 899), ("tokyo", 1420)],
+    )
+
+conexion.close()
+```
+
+`executemany()` aplica la sentencia a cada pareja. `ON CONFLICT` actualiza el precio si la ciudad ya existe. `with conexion` confirma la transacción al terminar sin errores; `close()` cierra la conexión.
+
+### Sustituir la consulta de precios
+
+```python
+from contextlib import closing
+
+def precio_billete(ciudad):
+    with closing(sqlite3.connect(DB)) as conexion:
+        fila = conexion.execute(
+            "SELECT price FROM prices WHERE city = ?",
+            (ciudad.strip().lower(),),
+        ).fetchone()
+
+    return {
+        "ciudad": ciudad,
+        "precio": fila[0] if fila else None,
+        "moneda": "USD",
+    }
+
+print(precio_billete("Paris"))
+```
+
+`?` recibe el valor por separado, sin interpolarlo en el SQL. La coma de `(ciudad.strip().lower(),)` crea una tupla de un elemento. `fetchone()` devuelve una fila o `None`; `closing()` cierra la conexión al salir.
+
+La descripción de la herramienta y el bucle de llamadas siguen utilizando `precio_billete()`: cambia la fuente de datos, no su interfaz.
+
+## Imágenes
+
+La API devuelve la imagen codificada en base64. La conversión es: texto base64 → bytes → archivo en memoria → imagen de Pillow.
+
+```python
+import base64
+from io import BytesIO
+from PIL import Image
+
+def crear_imagen(ciudad):
+    respuesta = cliente.images.generate(
+        model="gpt-image-1-mini",
+        prompt=f"Ilustración turística de {ciudad}, estilo pop art.",
+        size="1024x1024",
+        n=1,
+    )
+    datos = base64.b64decode(respuesta.data[0].b64_json)
+    return Image.open(BytesIO(datos))
+```
+
+```python
+from IPython.display import display
+
+imagen = crear_imagen("Paris")
+display(imagen)
+```
+
+`crear_imagen()` devuelve un objeto `Image` que pueden mostrar Jupyter y `gr.Image`. La generación es una llamada independiente del chat. [Generación de imágenes](https://developers.openai.com/api/docs/guides/image-generation).
+
+## Voz
+
+La síntesis recibe el texto final del asistente y devuelve audio:
+
+```python
+def crear_audio(texto):
+    respuesta = cliente.audio.speech.create(
+        model="gpt-4o-mini-tts",
+        voice="onyx",
+        input=texto,
+        response_format="mp3",
+    )
+    return respuesta.content
+```
+
+```python
+from pathlib import Path
+from IPython.display import Audio, display
+
+audio = crear_audio("El billete a París cuesta 899 dólares.")
+display(Audio(audio))
+
+Path("respuesta.mp3").write_bytes(audio)
+```
+
+`audio` contiene bytes MP3. `Audio()` los reproduce en Jupyter y `write_bytes()` los guarda en disco. Es una salida de voz, no reconocimiento de audio de entrada. [Texto a voz](https://developers.openai.com/api/docs/guides/text-to-speech).
+
+## Blocks y eventos
+
+`gr.Blocks` permite distribuir componentes y conectar sus eventos. En este ejemplo el envío actualiza primero el historial; después se generan texto, voz e imagen con las funciones anteriores.
+
+```python
+def agregar_mensaje(texto, historial):
+    return "", historial + [{"role": "user", "content": texto}]
+
+def responder_multimedia(historial):
+    mensajes = [{"role": "system", "content": sistema}] + [
+        {"role": entrada["role"], "content": entrada["content"]}
+        for entrada in historial
+    ]
+    texto, ciudades = consultar_vuelos(mensajes)
+
+    actualizado = historial + [{"role": "assistant", "content": texto}]
+    audio = crear_audio(texto)
+    imagen = crear_imagen(ciudades[0]) if ciudades else None
+    return actualizado, audio, imagen
+```
+
+```python
+with gr.Blocks() as interfaz:
+    with gr.Row():
+        conversacion = gr.Chatbot(type="messages")
+        imagen = gr.Image(interactive=False)
+
+    audio = gr.Audio(autoplay=True)
+    entrada = gr.Textbox(label="Mensaje")
+
+    entrada.submit(
+        agregar_mensaje,
+        inputs=[entrada, conversacion],
+        outputs=[entrada, conversacion],
+    ).then(
+        responder_multimedia,
+        inputs=[conversacion],
+        outputs=[conversacion, audio, imagen],
+    )
+
+interfaz.launch()
+```
+
+`agregar_mensaje()` devuelve una cadena vacía para limpiar el cuadro y una lista nueva para actualizar el chat. `.then()` ejecuta la segunda función después de ese evento.
+
+`responder_multimedia()` recibe un historial que ya contiene el mensaje nuevo; no debe añadirlo otra vez. Sus tres valores se asignan a `conversacion`, `audio` e `imagen` en el orden indicado por `outputs`.

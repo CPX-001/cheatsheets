@@ -52,13 +52,15 @@ develop image construction and Compose configuration without expanding Base into
 a reference manual. Further subtopics can be added when requested; do not publish
 empty placeholders or separate glossaries.
 
-The LLM Engineering weeks stay grounded in the course notebooks. Week 1 uses
+The LLM Engineering weeks stay grounded in the course notebooks. Both weeks use
 plain subject headings, short explanations, working code and concrete results.
 Cover JSON, Python data structures, API calls, history, streaming and scraping.
 Use the existing reading index for navigation. Do not add tables, quick-reference
 introductions, commentary about the reader's request or promotional headings.
 Keep explanations tied to implementation and identify shared variables.
-Week 2 keeps its compact, connected synthesis of the course demonstrations.
+Week 2 covers model clients, usage, caching, Gradio 5, generators, chat history,
+tool calls, SQLite, images, audio and Blocks events. Match the course's installed
+API and Gradio versions, and explain the input/output contracts with runnable code.
 
 Verify the four catalogue dialogs, keyboard navigation, search, theme switching,
 code copying, local anchors and mobile overflow whenever the reading shell changes.
