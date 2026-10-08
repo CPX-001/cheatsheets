@@ -6,8 +6,8 @@ Cada guía es independiente y desarrolla fundamentos e implementación con
 ejemplos explicados, partiendo de Python y terminal básicos.
 Docker incluye además **Dockerfile** y **Docker Compose** para profundizar
 después de los fundamentos.
-LLM Engineering incluye **Week 1** y **Week 2**, con explicaciones compactas que
-conectan las ideas del curso y condensan sus demostraciones repetidas.
+LLM Engineering incluye **Week 1** y **Week 2**, con apuntes por temas,
+ejemplos de código y explicaciones de las operaciones utilizadas en el curso.
 
 **Web:** https://app.sheet-codes.workers.dev
 

@@ -52,10 +52,13 @@ develop image construction and Compose configuration without expanding Base into
 a reference manual. Further subtopics can be added when requested; do not publish
 empty placeholders or separate glossaries.
 
-The LLM Engineering weeks are compact, connected syntheses of the course notebooks.
-Group repeated demonstrations under the idea they establish; do not mirror every
-cell or turn every visual experiment into a separate lesson. Keep code only where
-it clarifies a reusable mechanism, and explain the consequence of each concept.
+The LLM Engineering weeks stay grounded in the course notebooks. Week 1 uses
+plain subject headings, short explanations, working code and concrete results.
+Cover JSON, Python data structures, API calls, history, streaming and scraping.
+Use the existing reading index for navigation. Do not add tables, quick-reference
+introductions, commentary about the reader's request or promotional headings.
+Keep explanations tied to implementation and identify shared variables.
+Week 2 keeps its compact, connected synthesis of the course demonstrations.
 
 Verify the four catalogue dialogs, keyboard navigation, search, theme switching,
 code copying, local anchors and mobile overflow whenever the reading shell changes.

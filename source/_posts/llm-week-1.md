@@ -1,180 +1,458 @@
 ---
 title: 'LLM Engineering · Week 1'
 date: '2026-09-23'
-updated: '2026-09-23'
+updated: '2026-10-09'
 layout: 'learning'
 language: 'es'
 disableNunjucks: true
 icon: 'ai'
 series_title: 'LLM Engineering'
 categories: ['AI']
-intro: 'De una llamada al modelo a un generador de documentos: qué recibe el LLM, cómo cambiar de proveedor y cómo conectar los pasos.'
-heading: 'Week 1 · Fundamentos'
+intro: 'Python, JSON, Chat Completions, historial, streaming y modelos locales.'
+heading: 'LLM Engineering · Week 1'
 learning_classes: 'learning-page learning-llm learning-page-cards'
 background: 'bg-gradient-to-r from-violet-700 to-purple-900 !text-white'
 ---
 
-## 1. La aplicación hace más que llamar al modelo
+## JSON
 
-El proyecto de la semana empieza resumiendo una web y termina creando un folleto con varias páginas. El cambio importante es **aprender a preparar la información y organizar el trabajo del modelo**. La llamada a la API ocupa pocas líneas; lo que determina su utilidad es qué entra, qué se pide y cómo se utiliza la salida.
+JSON es un formato de texto. Para trabajar con sus datos en Python se convierte a un diccionario o una lista; para enviarlos como JSON se hace la conversión inversa.
 
-```text
-URL → Python descarga y limpia la página → texto + instrucciones
-    → modelo genera una respuesta → Python la recoge y la muestra
+### JSON a diccionario: json.loads()
+
+```python
+import json
+
+texto = '{"nombre": "Ana", "activo": true, "nota": null}'
+datos = json.loads(texto)
+
+print(datos["nombre"])
+print(datos["activo"])
+print(datos["nota"])
 ```
 
-El modelo no visita una web porque aparezca su URL en el mensaje. En este proyecto recibe el texto que Python ha descargado. Si ese texto contiene solo un menú, el modelo no tiene los artículos que hay detrás. Esta distinción explica muchos resultados pobres antes de cambiar de modelo o retocar el prompt.
+```text
+Ana
+True
+None
+```
 
-Los saludos, resúmenes humorísticos y cambios de idioma muestran la misma idea: **un mismo modelo puede hacer tareas distintas cambiando las instrucciones y los datos**. No hace falta conservar una receta diferente para cada ejemplo.
+`texto` es un `str`; `datos` es un `dict`. Si el JSON contiene un array, `loads()` devuelve una lista:
 
-## 2. Dónde se ejecuta cada cosa
+```python
+numeros = json.loads("[10, 20, 30]")
+print(numeros[0])
+```
 
-El notebook ejecuta Python en un **kernel**, un proceso que conserva variables y funciones entre celdas. La librería `openai` se ejecuta allí, pero el modelo remoto se ejecuta en el servidor del proveedor. Instalar la librería no descarga GPT.
+```text
+10
+```
 
-Para reproducir los ejemplos se parte del entorno Python del curso, con sus dependencias instaladas y ese entorno seleccionado como kernel. El archivo `.env` del proyecto contiene `OPENAI_API_KEY`; `load_dotenv()` carga sus valores en las variables de entorno del proceso y `OpenAI()` lee esa clave.
+### Diccionario a JSON: json.dumps()
+
+```python
+datos = {"nombre": "Lucía", "activo": True, "nota": None}
+texto = json.dumps(datos, ensure_ascii=False, indent=2)
+print(texto)
+```
+
+```json
+{
+  "nombre": "Lucía",
+  "activo": true,
+  "nota": null
+}
+```
+
+`ensure_ascii=False` conserva las tildes legibles y `indent=2` añade sangría. JSON usa comillas dobles y los valores `true`, `false` y `null`; Python usa `True`, `False` y `None`.
+
+`str(datos)` no produce JSON. `json.loads()` tampoco sirve para leer Markdown: necesita texto JSON válido. [Documentación de json](https://docs.python.org/3/library/json.html).
+
+## Listas y diccionarios
+
+Una lista se accede por posición; un diccionario, por clave. Las respuestas estructuradas suelen combinar ambos:
+
+```python
+seleccion = {
+    "links": [
+        {"type": "about", "url": "https://empresa.example/about"},
+        {"type": "careers", "url": "https://empresa.example/jobs"},
+    ]
+}
+
+enlaces = seleccion["links"]
+primer_enlace = enlaces[0]
+url = primer_enlace["url"]
+
+print(seleccion["links"][0]["url"])
+```
+
+```text
+https://empresa.example/about
+```
+
+`seleccion` es un diccionario, `enlaces` es una lista y cada elemento de esa lista es otro diccionario.
+
+### Recorrer
+
+```python
+for enlace in enlaces:
+    print(enlace["type"], enlace["url"])
+```
+
+Para recorrer un diccionario, `for clave in primer_enlace` obtiene sus claves. `items()` permite obtener cada clave junto con su valor:
+
+```python
+for clave, valor in primer_enlace.items():
+    print(clave, valor)
+```
+
+### Extraer y filtrar
+
+```python
+urls = [enlace["url"] for enlace in enlaces]
+
+urls_about = [
+    enlace["url"]
+    for enlace in enlaces
+    if enlace["type"] == "about"
+]
+
+print(urls_about)
+```
+
+```text
+['https://empresa.example/about']
+```
+
+### Campos opcionales
+
+```python
+titulo = primer_enlace.get("title", "Sin título")
+print(titulo)
+```
+
+```text
+Sin título
+```
+
+`get()` devuelve el valor indicado cuando falta la clave. El acceso `primer_enlace["title"]` produciría `KeyError`.
+
+## Texto y prompts
+
+### Interpolar variables
+
+```python
+nombre = "Biblioteca Central"
+texto_web = "Abre de lunes a viernes, de 9 a 18 horas."
+
+prompt = f"""Resume la información de {nombre}.
+Conserva los horarios y no inventes datos.
+
+{texto_web}
+"""
+```
+
+El prefijo `f` permite insertar variables entre llaves. Las comillas triples permiten escribir varias líneas. La instrucción define la tarea y el formato; `texto_web` aporta los datos.
+
+### Unir textos
+
+```python
+urls = ["https://empresa.example/about", "https://empresa.example/jobs"]
+texto_enlaces = "\n".join(urls)
+print(texto_enlaces)
+```
+
+```text
+https://empresa.example/about
+https://empresa.example/jobs
+```
+
+`"\n"` separa los elementos con un salto de línea. `join()` necesita strings: si se parte de la lista de diccionarios `enlaces`, primero se extrae el campo:
+
+```python
+texto_enlaces = "\n".join(enlace["url"] for enlace in enlaces)
+```
+
+### Recortar
+
+```python
+texto_limitado = texto_web[:2000]
+```
+
+El corte conserva los primeros 2.000 caracteres. No cuenta tokens.
+
+## OpenAI y mensajes
+
+### Cliente
+
+Con `OPENAI_API_KEY` en el `.env` del proyecto:
 
 ```python
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
+load_dotenv(override=True)
 cliente = OpenAI()
 modelo = "gpt-4.1-mini"
 ```
 
-Crear `cliente` prepara el acceso a la API; la generación empieza al llamar a `create()`. El modelo anterior es uno de los utilizados en el temario, no una afirmación sobre cuál sea el más reciente. Los nombres disponibles y las capacidades dependen del proveedor y de la cuenta.
+`load_dotenv()` carga las variables del archivo. `override=True` sustituye valores que el proceso ya tuviera. `OpenAI()` lee la clave y crea el cliente; la petición se envía al ejecutar `create()`.
 
-En los notebooks aparece `load_dotenv(override=True)`: permite sustituir valores que el proceso ya tenía por los del archivo. Sin ese parámetro se conservan los existentes. No es necesario imprimir una clave para comprobar si está configurada.
-
-El estado del kernel también explica por qué una función puede cambiar de comportamiento sin editarla: si utiliza una variable global como `system_prompt`, leerá su valor actual al ejecutarse. Ejecutar celdas fuera de orden puede mezclar versiones. Reiniciar el kernel y ejecutar de arriba abajo permite comprobar que el recorrido se sostiene por sí mismo.
-
-## 3. Una petición es contexto más una tarea
-
-La API **Chat Completions**, utilizada en estas semanas, recibe una lista de mensajes y genera la siguiente intervención del asistente. Cada mensaje tiene un `role`, que identifica su función, y un `content`, que contiene el texto.
-
-`system` establece las instrucciones generales; `user` aporta la petición y sus datos; `assistant` representa una respuesta anterior. Para un resumen, las reglas pueden mantenerse estables mientras cambia el documento:
+### Llamada y respuesta
 
 ```python
-texto_web = "La biblioteca abre de lunes a viernes, de 9 a 18 horas."
 mensajes = [
     {"role": "system", "content": "Resume en español sin inventar datos."},
-    {"role": "user", "content": f"Resume este texto en una frase:\n{texto_web}"},
+    {"role": "user", "content": "La biblioteca abre de lunes a viernes, de 9 a 18."},
 ]
 
-respuesta = cliente.chat.completions.create(model=modelo, messages=mensajes)
-resumen = respuesta.choices[0].message.content
-```
-
-`respuesta` es un objeto con el mensaje generado y otros datos de la petición. `choices[0]` toma la primera alternativa; `message.content` extrae su texto. Por eso el resultado que conviene devolver desde una función suele ser `resumen`, no el objeto completo.
-
-Un prompt útil concreta **tarea, fuente, destinatario y formato**: «Con este texto, prepara un resumen breve para alguien que quiere visitar la biblioteca; conserva el horario». Pedir un tono distinto cambia la presentación, pero no aporta hechos nuevos. Dar un ejemplo de la salida deseada es _one-shot prompting_: enseña el patrón que se espera, sin entrenar ni modificar el modelo.
-
-Para mostrar Markdown en Jupyter se usa `display(Markdown(resumen))`, importando ambos objetos de `IPython.display`. Esto solo cambia la presentación. `return resumen` entrega el valor a otra función; `display(...)` lo muestra. Si se omite `return`, una función normal devuelve `None` aunque se vea una respuesta en pantalla.
-
-## 4. Cliente, API, proveedor y modelo son piezas distintas
-
-El día 2 hace una petición HTTP con `requests` y después repite la operación con `OpenAI()`. La enseñanza es que **el SDK es una librería cliente que prepara peticiones HTTP y convierte las respuestas en objetos Python**. El modelo no está dentro del paquete.
-
-En HTTP se envían la clave en una cabecera y `model` y `messages` en el cuerpo JSON a `/v1/chat/completions`. El SDK organiza esos mismos datos mediante `cliente.chat.completions.create(...)`; evita escribir a mano buena parte de esa comunicación.
-
-Esto permite entender por qué se puede usar la librería de OpenAI para llamar a otros proveedores. Si un servidor acepta ese formato, basta con configurar su dirección y su clave, y elegir uno de **sus** modelos:
-
-```python
-import os
-
-gemini = OpenAI(
-    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-    api_key=os.environ["GOOGLE_API_KEY"],
+respuesta = cliente.chat.completions.create(
+    model=modelo,
+    messages=mensajes,
 )
+
+resumen = respuesta.choices[0].message.content
+print(resumen)
 ```
 
-Aquí `GOOGLE_API_KEY` debe existir en el entorno o haberse cargado desde `.env`. La petición irá a Google. El nombre de la clase `OpenAI` no implica que intervenga un modelo de OpenAI ni que se facture allí. En la siguiente llamada se utilizarían `gemini` y un identificador de modelo de Gemini.
+`messages` recibe una lista de diccionarios directamente. `system` establece las instrucciones, `user` contiene la petición y `assistant` representa una respuesta anterior.
 
-**Lo reutilizable es el formato de comunicación, no todas las capacidades.** Streaming, herramientas, JSON y parámetros de razonamiento deben estar soportados por ese servidor y modelo. La [compatibilidad de Gemini](https://ai.google.dev/gemini-api/docs/openai) documenta esa vía. La [Week 2](/llm-week-2.html) compara este enfoque con los SDK nativos y los intermediarios.
+`respuesta` es un objeto del SDK. `choices[0]` toma la primera respuesta y `message.content` obtiene su texto. [Chat Completions](https://developers.openai.com/api/reference/python/resources/chat/subresources/completions/methods/create).
 
-### La misma aplicación con un modelo local
+## Funciones y Markdown
 
-Ollama actúa como servidor local y ejecuta un modelo descargado. Son dos requisitos distintos: tener el servidor disponible y tener el modelo que se solicita. Con Ollama instalado, en una terminal se descarga, por ejemplo, `ollama pull llama3.2:1b`; si el servidor no está activo, `ollama serve` lo inicia en otra terminal y permanece ejecutándose.
-
-En Python, el cambio de conexión es:
+Una función permite reutilizar la llamada cambiando el texto y la instrucción. Este ejemplo utiliza `cliente` y `modelo` definidos arriba:
 
 ```python
-local = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
-respuesta = local.chat.completions.create(model="llama3.2:1b", messages=mensajes)
+def generar(texto, instruccion):
+    respuesta = cliente.chat.completions.create(
+        model=modelo,
+        messages=[
+            {"role": "system", "content": instruccion},
+            {"role": "user", "content": texto},
+        ],
+    )
+    return respuesta.choices[0].message.content
 ```
 
-`localhost` es la máquina donde corre Python. La clave de ejemplo satisface al cliente y el servidor local de Ollama la ignora, como explica su [documentación de compatibilidad](https://docs.ollama.com/api/openai-compatibility). El identificador debe coincidir con el descargado: `llama3.2` y `llama3.2:1b` no son intercambiables por su nombre.
-
-El resto del resumidor puede mantenerse: descargar, preparar mensajes y presentar texto. La inferencia local evita una tarifa de API y mantiene ese procesamiento en la máquina, a cambio de consumir sus recursos. La velocidad y la calidad dependerán del hardware, del modelo y de la tarea.
-
-## 5. La calidad empieza antes del prompt
-
-`week1/scraper.py` contiene dos utilidades: `fetch_website_contents(url)` obtiene título y texto; `fetch_website_links(url)` extrae enlaces. Se importan desde los notebooks de esa carpeta. Internamente, `requests` descarga HTML y BeautifulSoup permite recorrerlo y retirar elementos como scripts y estilos.
-
-La primera utilidad limita el resultado a **2.000 caracteres**. Esto mantiene pequeño el ejemplo, pero puede eliminar precisamente la información necesaria. Tampoco ejecuta JavaScript: si la página construye su contenido en el navegador, el HTML descargado puede estar casi vacío. Un bloqueo HTTP o un texto incompleto se investiga en la descarga, no en el prompt.
-
-Por eso, al practicar, conviene mirar primero el texto extraído. Después comprobar los mensajes construidos y finalmente la respuesta. Así se distingue entre «no tenía los datos» y «tenía los datos, pero no siguió bien la instrucción».
-
-## 6. Tokens y memoria: el contexto tiene un tamaño
-
-El modelo trabaja con **tokens**, unidades que pueden representar palabras, partes de palabras o signos. El ejemplo con `tiktoken` permite ver esa división: `encode(texto)` devuelve identificadores y `decode(tokens)` reconstruye texto. La conclusión práctica es que **caracteres, palabras y tokens no son equivalentes**; cortar a 5.000 caracteres no establece un presupuesto exacto de tokens.
-
-El contexto de una petición incluye instrucciones, documentos e historial. Tiene un límite y su procesamiento influye en el coste y el tiempo de respuesta. El tokenizador debe corresponder al modelo; contar un texto aislado tampoco incluye automáticamente toda la estructura de mensajes.
-
-El experimento de decir «me llamo Ana» y preguntar después el nombre muestra otra idea esencial: en estas llamadas a Chat Completions, **reutilizar el cliente no conserva la conversación**. La aplicación debe incluir el historial en la siguiente petición:
+En Jupyter, `Markdown()` interpreta el formato y `display()` lo muestra:
 
 ```python
-# Continuación de los mensajes y la respuesta de la sección 3.
+from IPython.display import Markdown, display
+
+resultado = generar(
+    "La biblioteca abre de lunes a viernes, de 9 a 18.",
+    "Resume en Markdown sin inventar datos.",
+)
+display(Markdown(resultado))
+```
+
+`return` entrega el texto al código que llamó a la función. Sin él, `resultado` sería `None` aunque se mostrara algo con `display()`. Markdown sigue siendo texto: no necesita conversión con `json.loads()`.
+
+## Respuestas en JSON
+
+El selector de enlaces devuelve datos que Python puede recorrer. La estructura se indica con un ejemplo dentro del prompt; `response_format` activa el modo JSON.
+
+```python
+import json
+
+def seleccionar_enlaces(urls):
+    respuesta = cliente.chat.completions.create(
+        model=modelo,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Selecciona enlaces sobre la empresa o empleo. "
+                    "Usa solo las URL recibidas. Excluye privacidad. "
+                    'Devuelve JSON así: {"links": [{"type": "about", "url": "..."}]}'
+                ),
+            },
+            {"role": "user", "content": "\n".join(urls)},
+        ],
+        response_format={"type": "json_object"},
+    )
+    texto = respuesta.choices[0].message.content
+    return json.loads(texto)
+```
+
+```python
+urls = [
+    "https://empresa.example/about",
+    "https://empresa.example/jobs",
+    "https://empresa.example/privacy",
+]
+
+seleccion = seleccionar_enlaces(urls)
+
+for enlace in seleccion["links"]:
+    print(enlace["url"])
+```
+
+`message.content` sigue siendo un `str`. `json.loads()` lo convierte en `dict`. El modo JSON no garantiza que existan las claves esperadas ni que sus valores sean correctos. [Modo JSON](https://developers.openai.com/api/docs/guides/structured-outputs#json-mode).
+
+## Historial
+
+Cada llamada recibe su propio contexto. Para continuar una conversación se añaden la respuesta del asistente y la siguiente petición a la lista original.
+
+Con `mensajes` y `resumen` de la llamada anterior:
+
+```python
 mensajes.append({"role": "assistant", "content": resumen})
-mensajes.append({"role": "user", "content": "¿Y los sábados?"})
-respuesta = cliente.chat.completions.create(model=modelo, messages=mensajes)
+mensajes.append({"role": "user", "content": "Hazlo todavía más corto."})
+
+respuesta = cliente.chat.completions.create(
+    model=modelo,
+    messages=mensajes,
+)
+
+texto = respuesta.choices[0].message.content
+mensajes.append({"role": "assistant", "content": texto})
+print(texto)
 ```
 
-El modelo vuelve a ver el texto inicial, el resumen y la pregunta nueva. Podrá relacionarlos, pero no debería inventar un horario de sábado que no aparece en la fuente. Guardar el historial en Python permite reenviarlo; no lo incorpora al entrenamiento. Además, ese historial vuelve a formar parte de la entrada de cada turno. La documentación sobre [estado de conversación](https://developers.openai.com/api/docs/guides/conversation-state) distingue este manejo manual de otras APIs que gestionan estado.
+`append()` añade un elemento al final. La nueva llamada recibe instrucciones, petición inicial, respuesta y seguimiento. Reutilizar el cliente sin reenviar esos mensajes no conserva la conversación.
 
-## 7. Encadenar llamadas cuando cada una aporta algo
+## Streaming
 
-El folleto del día 5 resuelve un problema que una sola página no cubre: la información de una empresa está repartida. El recorrido es:
-
-1. **Extraer enlaces con Python.** Todavía no se pide al modelo que redacte.
-2. **Pedir al modelo que seleccione fuentes relevantes**, como empresa, productos o empleo.
-3. **Descargar esas páginas con Python** y reunir sus textos.
-4. **Pedir al modelo que redacte el folleto** a partir de la información reunida.
-
-La primera llamada toma una decisión que cambia los datos disponibles para la segunda. Esa es la razón de dividir el trabajo. Pedir dos veces una explicación del mismo texto no aporta necesariamente una mejora; una revisión tiene sentido si recibe criterios concretos o evidencia adicional.
-
-### JSON para continuar el programa; Markdown para leer
-
-La selección de enlaces necesita una salida que Python pueda recorrer. Se pide un objeto JSON como `{"links": [{"type": "about", "url": "https://empresa.example/about"}]}`. En esa llamada, `response_format={"type": "json_object"}` activa el modo JSON y el prompt también debe pedir JSON.
-
-El contenido sigue llegando como texto. `seleccion = json.loads(respuesta.choices[0].message.content)` lo convierte en un diccionario; entonces `seleccion["links"]` permite iterar por los enlaces. Para el folleto final se solicita Markdown, porque su destinatario es una persona.
-
-**JSON válido no garantiza los campos esperados ni que las URL sean correctas.** Python debe comprobar la estructura y contrastar los enlaces con los extraídos. Resolver rutas relativas y eliminar duplicados son tareas deterministas que puede hacer el código. Los [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs) añaden conformidad con un esquema; son una técnica posterior, distinta del modo JSON usado aquí.
-
-El notebook recorta el prompt del folleto a 5.000 caracteres. Sirve para contener el tamaño de la demostración, pero puede dejar fuera páginas enteras que se acaban de descargar. La deducción es **seleccionar y repartir mejor el contexto**, en vez de confiar en que juntar más texto siempre mejora el resultado.
-
-## 8. Streaming: cambia la entrega, no la tarea
-
-Con `stream=True`, la respuesta llega por fragmentos. En Chat Completions se leen en `delta.content`, en lugar de extraer un mensaje completo al final. Algunos fragmentos no contienen texto; `or ""` permite acumularlos sin concatenar `None`.
-
-En un notebook, este patrón muestra el avance en una única salida. Reutiliza `cliente`, `modelo` y `mensajes` de las secciones anteriores:
+Con `stream=True` se recibe un iterable de fragmentos. El texto nuevo está en `delta.content`; `or ""` evita concatenar `None` cuando un fragmento no contiene texto.
 
 ```python
 from IPython.display import Markdown, display, update_display
 
 stream = cliente.chat.completions.create(
-    model=modelo, messages=mensajes, stream=True
+    model=modelo,
+    messages=[{"role": "user", "content": "Explica las listas de Python en 3 viñetas."}],
+    stream=True,
 )
+
 texto = ""
 salida = display(Markdown(""), display_id=True)
+
 for fragmento in stream:
     if fragmento.choices:
         texto += fragmento.choices[0].delta.content or ""
         update_display(Markdown(texto), display_id=salida.display_id)
 ```
 
-`display_id` identifica la salida que se actualiza; `texto` conserva lo recibido. Crear un `display()` nuevo en cada vuelta produciría muchas salidas. El streaming permite empezar a leer antes de que termine la generación, pero no hace que el modelo razone mejor ni garantiza reducir el tiempo total. Véase [streaming de Chat Completions](https://developers.openai.com/api/docs/guides/streaming-responses).
+`texto` acumula la respuesta completa. `display_id=True` identifica una salida de Jupyter y `update_display()` actualiza esa misma salida. Si se crea un `display()` dentro del bucle, se generan salidas nuevas.
 
-Con estas piezas se puede reconstruir el proyecto: obtener datos, preparar mensajes, llamar al servidor adecuado, interpretar el formato de salida y utilizar el resultado. Si algo falla, revisar ese recorrido en orden suele ser más útil que cambiar todo el prompt.
+Dentro de una función, `return texto` debe ir después del bucle. [Streaming de Chat Completions](https://developers.openai.com/cookbook/examples/how_to_stream_completions).
 
-Esta síntesis parte de `week1/day1.ipynb`, `day2.ipynb`, `day4.ipynb`, `day5.ipynb`, `scraper.py` y el ejercicio final del curso. La copia revisada no contiene un `day3.ipynb`. La continuación está en [Week 2 · Aplicaciones](/llm-week-2.html).
+## Scraping y generación de documentos
+
+Las funciones de `week1/scraper.py` se importan desde un notebook de esa carpeta:
+
+```python
+from scraper import fetch_website_contents, fetch_website_links
+
+url = "https://example.com"
+texto_web = fetch_website_contents(url)
+enlaces_web = fetch_website_links(url)
+
+print(texto_web[:300])
+```
+
+`fetch_website_contents()` devuelve título y texto como un `str`, limitado a 2.000 caracteres. `fetch_website_links()` devuelve una lista de enlaces. El scraper limpia HTML con BeautifulSoup; no ejecuta JavaScript.
+
+### Selección y redacción
+
+El folleto se construye en dos llamadas: la primera elige fuentes; la segunda redacta con sus contenidos. Entre ambas, Python descarga las páginas.
+
+El siguiente bloque utiliza `seleccionar_enlaces()` y `generar()` definidos antes:
+
+```python
+from urllib.parse import urljoin
+
+urls = [urljoin(url, enlace) for enlace in enlaces_web]
+urls = [enlace for enlace in urls if enlace.startswith(("https://", "http://"))]
+seleccion = seleccionar_enlaces(urls)
+textos = [texto_web]
+
+for enlace in seleccion["links"]:
+    if enlace["url"] in urls:
+        textos.append(fetch_website_contents(enlace["url"]))
+
+documento = "\n\n".join(textos)
+folleto = generar(
+    documento,
+    "Redacta un folleto breve en Markdown usando solo estos datos.",
+)
+display(Markdown(folleto))
+```
+
+`urljoin()` convierte rutas como `/about` en direcciones completas. La comprobación `in urls` descarta enlaces que no estaban entre los extraídos. `join()` reúne los contenidos en un único texto para la segunda llamada.
+
+## Peticiones HTTP
+
+`requests` permite enviar directamente los mismos mensajes a la API. Aquí `modelo` y `mensajes` son los definidos en la llamada con el SDK:
+
+```python
+import os
+import requests
+
+respuesta_http = requests.post(
+    "https://api.openai.com/v1/chat/completions",
+    headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"},
+    json={"model": modelo, "messages": mensajes},
+    timeout=60,
+)
+respuesta_http.raise_for_status()
+
+datos = respuesta_http.json()
+texto = datos["choices"][0]["message"]["content"]
+print(texto)
+```
+
+`json=` serializa el diccionario enviado. `raise_for_status()` detecta errores HTTP y `.json()` convierte el cuerpo de la respuesta a datos Python.
+
+Con el SDK se accede mediante atributos: `respuesta.choices[0].message.content`. Con el diccionario de `requests` se utilizan claves: `datos["choices"][0]["message"]["content"]`.
+
+## Ollama
+
+Ollama ejecuta el modelo localmente. Con Ollama instalado, la descarga se hace en la terminal:
+
+```bash
+ollama pull llama3.2:1b
+```
+
+Si el servidor no está activo, `ollama serve` lo inicia. La conexión desde Python utiliza el mismo SDK:
+
+```python
+from openai import OpenAI
+
+local = OpenAI(
+    base_url="http://localhost:11434/v1",
+    api_key="ollama",
+)
+
+respuesta = local.chat.completions.create(
+    model="llama3.2:1b",
+    messages=[{"role": "user", "content": "Explica qué hace json.loads()."}],
+)
+print(respuesta.choices[0].message.content)
+```
+
+`base_url` cambia el servidor de destino. El nombre del modelo debe coincidir con el descargado; Ollama ignora la clave de ejemplo. [Compatibilidad de Ollama](https://docs.ollama.com/api/openai-compatibility).
+
+## Tokens
+
+`tiktoken` convierte texto en identificadores de tokens y permite reconstruirlo:
+
+```python
+import tiktoken
+
+codificador = tiktoken.encoding_for_model("gpt-4.1-mini")
+texto = "Hola, me llamo Ana."
+
+tokens = codificador.encode(texto)
+cantidad = len(tokens)
+recuperado = codificador.decode(tokens)
+
+print(tokens)
+print(cantidad)
+print(recuperado)
+```
+
+`tokens` es una lista de enteros y `recuperado` contiene el texto original. Los tokens no equivalen a palabras ni a caracteres. Este cálculo cuenta solo `texto`; no incluye automáticamente el resto de mensajes de una petición. [Documentación de tiktoken](https://github.com/openai/tiktoken).
