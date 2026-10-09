@@ -55,8 +55,10 @@ empty placeholders or separate glossaries.
 The LLM Engineering weeks stay grounded in the course notebooks. Both weeks use
 plain subject headings, short explanations, working code and concrete results.
 Cover JSON, Python data structures, API calls, history, streaming and scraping.
-Use the existing reading index for navigation. Do not add tables, quick-reference
-introductions, commentary about the reader's request or promotional headings.
+Use the existing reading index for navigation. Tables are limited to explicitly
+requested compact comparisons, such as Week 2's client/library selection.
+Do not add quick-reference introductions, commentary about the reader's request
+or promotional headings.
 Keep explanations tied to implementation and identify shared variables.
 Week 2 covers model clients, usage, caching, Gradio 5, generators, chat history,
 tool calls, SQLite, images, audio and Blocks events. Match the course's installed

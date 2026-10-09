@@ -18,6 +18,20 @@ background: 'bg-gradient-to-r from-violet-700 to-purple-900 !text-white'
 
 El cliente establece la conexión con el proveedor; `model` elige qué modelo atenderá la petición. Los ejemplos utilizan las claves cargadas desde el `.env` del proyecto.
 
+### Elección del cliente
+
+| Opción                                                                | Cuándo conviene                                                                           | Qué implica                                                                        |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| SDK de OpenAI (`openai`)                                              | Llamadas a OpenAI o a una API compatible; aplicaciones sencillas como las de esta semana. | La aplicación organiza directamente los mensajes, el streaming y las herramientas. |
+| SDK nativos (`anthropic`, `google-genai`)                             | Necesitas funciones específicas de Claude o Gemini.                                       | Cada proveedor tiene sus propios métodos, parámetros y respuestas.                 |
+| [LiteLLM](https://docs.litellm.ai/docs/)                              | Alternas varios proveedores y quieres mantener una misma interfaz en Python.              | Adapta llamadas y respuestas; utiliza las claves de cada proveedor.                |
+| [OpenRouter](https://openrouter.ai/docs/quickstart)                   | Quieres acceder a modelos de varias empresas mediante una sola API y cuenta.              | Es un servicio intermediario con su propia clave, no una librería cliente.         |
+| [LangChain](https://docs.langchain.com/oss/python/langchain/overview) | Necesitas combinar modelos, herramientas e integraciones en una aplicación más amplia.    | Añade componentes y abstracciones para organizar el flujo.                         |
+
+Para los ejemplos de esta semana, **el SDK de OpenAI es un punto de partida suficiente**: permite implementar el chat, el historial, el streaming y las herramientas con funciones Python. LiteLLM resulta útil cuando cambiar de proveedor se vuelve habitual; LangChain, cuando sus componentes resuelven una necesidad concreta de la aplicación.
+
+La compatibilidad con el SDK de OpenAI cubre las funciones que admita el servidor de destino. Para opciones específicas de un proveedor, conviene su SDK nativo. La elección de librería cambia cómo se programa la aplicación, no la capacidad del modelo.
+
 ### OpenAI
 
 ```python
@@ -135,7 +149,7 @@ respuesta_langchain = llm.invoke(mensajes)
 print(respuesta_langchain.content)
 ```
 
-LiteLLM y LangChain se ejecutan como librerías de Python. OpenRouter recibe las peticiones en su servicio. Utilizar otra librería no cambia por sí mismo la capacidad del modelo.
+LiteLLM y LangChain se ejecutan como librerías de Python. OpenRouter recibe las peticiones en su servicio.
 
 ## Consumo y caché
 
